@@ -1,0 +1,4 @@
+GOTCHAS
+
+Memory: you'll need to provide > 1GB of memory for your instance/VM to install django-twilio due to a memory bug with the package 'phonenumbers'. 2GB seems sufficient.
+
