@@ -2,3 +2,6 @@ django
 psycopg2
 PyYAML
 django-twilio
+django-extensions
+celery
+mosquitto
