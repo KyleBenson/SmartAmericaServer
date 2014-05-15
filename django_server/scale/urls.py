@@ -5,7 +5,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Examples:
-      url(r'^$', 'app.env.print_environment'),
+      url(r'^$', 'scale.env.print_environment'),
       url(r'^hello_call$', 'django_twilio.views.say', {
           'text' : 'Hello, world!  This is Twilio.'
           }),
