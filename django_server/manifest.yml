@@ -1,7 +1,7 @@
 ---
 # http://docs.gopivotal.com/pivotalcf/devguide/deploy-apps/manifest.html#minimal-manifest
 applications:
-- name:      scale
+- name:      testenvsmartamerica
   memory:    2G
   buildpack: https://github.com/ephoning/heroku-buildpack-python  # Supports Python 2.7.6, 3.4.0, and Pypy 1.9
 # buildpack: https://github.com/joshuamckenty/heroku-buildpack-python  # Does not support Python3
