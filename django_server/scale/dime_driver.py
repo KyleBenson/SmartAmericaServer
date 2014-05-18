@@ -1,50 +1,80 @@
-import mosquitto
+import mosquitto, thread, time
 
-
-def on_disconnect(mosq, obj, rc):
-    print("disconnected: " + str(rc))
-
-def on_connect(mosq, obj, rc):
-    #mosq.subscribe("$SYS/#", 0)
-    print("rc: "+str(rc))
-
-def on_message(mosq, obj, msg):
-    print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
-
-def on_publish(mosq, obj, mid):
-    print("published: "+str(mid))
-
-def on_subscribe(mosq, obj, mid, granted_qos):
-    print("Subscribed: "+str(mid)+" "+str(granted_qos))
-
-def on_log(mosq, obj, level, string):
-    print(string)
+#BROKER_SERVER = "dime.smartamerica.io"
+BROKER_SERVER = "m2m.eclipse.org"
 
 class DimeDriver:
-    __instance = None
+    """
+    Module for encapsulating the MQTT client for publishing and subscribing.
+    """
 
-    def __init__(self):
-        if DimeDriver.__instance is None:
-            DimeDriver.__instance = mosquitto.Mosquitto("SmartAmericaSCALE")
+    _client_instance = None
 
-            DimeDriver.__instance.on_message = on_message
-            DimeDriver.__instance.on_connect = on_connect
-            DimeDriver.__instance.on_disconnect = on_disconnect
-            DimeDriver.__instance.on_publish = on_publish
-            DimeDriver.__instance.on_subscribe = on_subscribe
+    @staticmethod
+    def _on_disconnect(mosq, obj, rc):
+        print("disconnected, rc: " + str(rc))
+        DimeDriver._client_instance = None
+        mosq.loop_stop()
 
+    @staticmethod
+    def _on_connect(mosq, obj, rc):
+        #mosq.subscribe("$SYS/#", 0)
+        print("connected, rc: "+str(rc))
+
+    @staticmethod
+    def _on_message(mosq, obj, msg):
+        print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
+
+    @staticmethod
+    def _on_publish(mosq, obj, mid):
+        print("published: "+str(mid))
+
+    @staticmethod
+    def _on_subscribe(mosq, obj, mid, granted_qos):
+        print("Subscribed: "+str(mid)+" "+str(granted_qos))
+
+    @staticmethod
+    def _on_log(mosq, obj, level, string):
+        print(string)
+
+    @staticmethod
+    def publish(topic, payload):
+        client = DimeDriver._get_client()
+        ret = client.publish(topic, payload)
+        #may have to disconnect and reconnect each time: DimeDriver._dispose_client(client)
+        return ret
+
+    @staticmethod
+    def subscribe(topic="iot-1/d/+/evt/+/json", qos=0):
+        client = DimeDriver._get_client()
+        ret = client.subscribe(topic, qos)
+        client.loop_start()
+
+    @staticmethod
+    def _get_client():
+        if DimeDriver._client_instance is None:
             print 'connecting...'
-            DimeDriver.__instance.connect("dime.smartamerica.io", 1883, 60)
-            DimeDriver.__instance.subscribe("iot-1/d/+/evt/+/json", 0)
-            print 'connected!'
-            #DimeDriver.__instance.loop_forever()
+            DimeDriver._client_instance = mosquitto.Mosquitto("SmartAmericaSCALE" + str(time.time()))
+            DimeDriver._client_instance.connect(BROKER_SERVER, 1883, 60)
+            DimeDriver._client_instance.on_message = DimeDriver._on_message
+            DimeDriver._client_instance.on_connect = DimeDriver._on_connect
+            DimeDriver._client_instance.on_disconnect = DimeDriver._on_disconnect
+            DimeDriver._client_instance.on_publish = DimeDriver._on_publish
+            DimeDriver._client_instance.on_subscribe = DimeDriver._on_subscribe
+        return DimeDriver._client_instance
 
-    def publish(self, topic, payload):
-        return DimeDriver.__instance.publish(topic, payload)
+    @staticmethod
+    def _dispose_client(client):
+        client.disconnect()
+        #TODO: figure out why _on_disconnect doesn't get called!
+        DimeDriver._client_instance = None
+        client.loop_stop()
 
 if __name__ == '__main__':
-    driver = DimeDriver()
-    driver.publish('iot-1/d/kyle/evt/test/json', 'blahblahpayload')
+    DimeDriver.subscribe('iot-1/d/kyle2/#')
+    DimeDriver.subscribe('iot-1/d/7831c1d1c734/#')
+    for i in range(10):
+        DimeDriver.publish('iot-1/d/kyle2/evt/test/json', 'blahblahpayload %i' % i)
 
-    driver = DimeDriver()
-    driver.publish('iot-1/d/kyle2/evt/test/json', 'blahblahpayload')
+    #sleep for a bit to see messages show up before we quit
+    time.sleep(10)
