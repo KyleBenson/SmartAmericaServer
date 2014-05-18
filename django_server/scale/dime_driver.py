@@ -9,6 +9,7 @@ class DimeDriver:
     """
 
     _client_instance = None
+    _client_looping = False
 
     @staticmethod
     def _on_disconnect(mosq, obj, rc):
@@ -48,7 +49,9 @@ class DimeDriver:
     def subscribe(topic="iot-1/d/+/evt/+/json", qos=0):
         client = DimeDriver._get_client()
         ret = client.subscribe(topic, qos)
-        client.loop_start()
+        if not DimeDriver._client_looping:
+            DimeDriver._client_looping = True
+            client.loop_start()
 
     @staticmethod
     def _get_client():
@@ -67,6 +70,7 @@ class DimeDriver:
     def _dispose_client(client):
         client.disconnect()
         #TODO: figure out why _on_disconnect doesn't get called!
+        DimeDriver._client_looping = None
         DimeDriver._client_instance = None
         client.loop_stop()
 
@@ -74,7 +78,7 @@ if __name__ == '__main__':
     DimeDriver.subscribe('iot-1/d/kyle2/#')
     DimeDriver.subscribe('iot-1/d/7831c1d1c734/#')
     for i in range(10):
-        DimeDriver.publish('iot-1/d/kyle2/evt/test/json', 'blahblahpayload %i' % i)
+        DimeDriver.publish('iot-1/d/kyle2/evt/smoke/json', 'blahblahpayload %i' % i)
 
     #sleep for a bit to see messages show up before we quit
     time.sleep(10)

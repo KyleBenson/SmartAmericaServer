@@ -9,9 +9,9 @@ def sigfox(request):
     signal = request.GET.get("key2")
     response = "your data from device %s at time %s is %s with strength %s" % (device_id, timestamp, data, signal)
 
-    driver = DimeDriver()
+    #TODO: get sensor type
     sensor_type = 'smoke'
     print data
-    driver.publish("iot-1/d/%s/evt/%s/json" % (device_id, sensor_type), str(data))
+    DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, sensor_type), str(data))
 
     return HttpResponse(response, content_type="text/plain")
