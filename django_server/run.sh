@@ -7,4 +7,4 @@ then SRV_PORT=8080;
 else SRV_PORT="$VCAP_APP_PORT";
 fi
 echo port is $SRV_PORT
-python manage.py runserver 0.0.0.0:$SRV_PORT
+python manage.py runserver --noreload 0.0.0.0:$SRV_PORT

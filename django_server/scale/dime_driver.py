@@ -1,4 +1,5 @@
-import mosquitto, thread, time
+import mosquitto, thread, time, os
+from twilio.rest import TwilioRestClient
 
 #BROKER_SERVER = "dime.smartamerica.io"
 BROKER_SERVER = "m2m.eclipse.org"
@@ -12,6 +13,17 @@ class DimeDriver:
     _client_looping = False
 
     @staticmethod
+    def _on_message(mosq, obj, msg):
+        print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
+        #TODO: remove all possible/confirmed instances, that should be a field
+        if 'smoke' in msg.topic:
+            DimeDriver.publish(msg.topic.replace('smoke', 'possible_fire'), str(msg.payload))
+        elif 'possible_fire' in msg.topic:
+            client = TwilioRestClient()
+            message = client.messages.create(to="+1%s" % os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with HELP for immediate assistance or OKAY to cancel this alert.", _from="+13024070223")
+            DimeDriver.publish(msg.topic.replace('possible_fire', 'confirmed_fire'), str(msg.payload))
+
+    @staticmethod
     def _on_disconnect(mosq, obj, rc):
         print("disconnected, rc: " + str(rc))
         DimeDriver._client_instance = None
@@ -21,10 +33,6 @@ class DimeDriver:
     def _on_connect(mosq, obj, rc):
         #mosq.subscribe("$SYS/#", 0)
         print("connected, rc: "+str(rc))
-
-    @staticmethod
-    def _on_message(mosq, obj, msg):
-        print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
 
     @staticmethod
     def _on_publish(mosq, obj, mid):
