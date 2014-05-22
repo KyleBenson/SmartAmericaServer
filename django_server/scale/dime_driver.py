@@ -1,6 +1,7 @@
 import mosquitto, thread, time, os
 from twilio.rest import TwilioRestClient
 
+# switch these lines to change brokers
 BROKER_SERVER = "m2m.eclipse.org"
 BROKER_SERVER = "dime.smartamerica.io"
 
@@ -14,10 +15,22 @@ class DimeDriver:
 
     @staticmethod
     def _on_message(mosq, obj, msg):
+        #TODO: wrap in debug
         print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
         #TODO: remove all possible/confirmed instances, that should be a field
         #TODO: how to split up the topic and modify fields as appropriate?
         if 'smoke' in msg.topic:
+            # ignore regular intervals for now
+            # TODO: low battery warnings!
+            FIRE_ALARM_VOLTAGE_THRESHOLD = 0x300
+            voltage_level = str(msg.payload)
+            if not voltage_level.startswith('0x'):
+                voltage_level = '0x' + voltage_level
+            voltage_level = int(voltage_level, 0) #0 says guess base of int
+            if voltage_level > FIRE_ALARM_VOLTAGE_THRESHOLD:
+                # not a fire
+                return
+
             topic = msg.topic.replace('smoke', 'possible_fire')
             topic = topic.split('/')
             topic[2] = 'test' #change device id
@@ -25,7 +38,8 @@ class DimeDriver:
             DimeDriver.publish(topic, str(msg.payload))
         elif 'possible_fire' in msg.topic:
             client = TwilioRestClient()
-            message = client.messages.create(to="+1%s" % os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with HELP for immediate assistance or OKAY to cancel this alert.", _from="TWILIO_PHONE_NUMBER")
+            #TODO: allow use of phrase help
+            message = client.messages.create(to="+1%s" % os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.", _from=os.environ.get("TWILIO_PHONE_NUMBER"))
             DimeDriver.publish(msg.topic.replace('possible_fire', 'confirmed_fire'), str(msg.payload))
             #TODO: confirm alert or escalate asynchronously
             #threading.Timer(interval, function, args=[], kwargs={})
