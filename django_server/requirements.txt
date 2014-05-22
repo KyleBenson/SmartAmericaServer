@@ -5,3 +5,5 @@ django-twilio
 django-extensions
 celery
 mosquitto
+django-json-field
+django-model-utils

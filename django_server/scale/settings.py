@@ -141,10 +141,18 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
+    # 'django.contrib.admindocs',
+
+    # third party
     'django_twilio',
     'django_extensions',
-    # Uncomment the next line to enable admin documentation:
-    # 'django.contrib.admindocs',
+    'json_field',
+
+    # our apps
+    'phone',
+    'sensors',
+#'analytics',
+#'dashboard',
 )
 
 # A sample logging configuration. The only tangible logging
