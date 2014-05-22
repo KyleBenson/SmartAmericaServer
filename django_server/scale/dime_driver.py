@@ -1,8 +1,8 @@
 import mosquitto, thread, time, os
 from twilio.rest import TwilioRestClient
 
-#BROKER_SERVER = "dime.smartamerica.io"
 BROKER_SERVER = "m2m.eclipse.org"
+BROKER_SERVER = "dime.smartamerica.io"
 
 class DimeDriver:
     """
@@ -16,12 +16,19 @@ class DimeDriver:
     def _on_message(mosq, obj, msg):
         print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
         #TODO: remove all possible/confirmed instances, that should be a field
+        #TODO: how to split up the topic and modify fields as appropriate?
         if 'smoke' in msg.topic:
-            DimeDriver.publish(msg.topic.replace('smoke', 'possible_fire'), str(msg.payload))
+            topic = msg.topic.replace('smoke', 'possible_fire')
+            topic = topic.split('/')
+            topic[2] = 'test' #change device id
+            topic = '/'.join(topic)
+            DimeDriver.publish(topic, str(msg.payload))
         elif 'possible_fire' in msg.topic:
             client = TwilioRestClient()
-            message = client.messages.create(to="+1%s" % os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with HELP for immediate assistance or OKAY to cancel this alert.", _from="+13024070223")
+            message = client.messages.create(to="+1%s" % os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with HELP for immediate assistance or OKAY to cancel this alert.", _from="TWILIO_PHONE_NUMBER")
             DimeDriver.publish(msg.topic.replace('possible_fire', 'confirmed_fire'), str(msg.payload))
+            #TODO: confirm alert or escalate asynchronously
+            #threading.Timer(interval, function, args=[], kwargs={})
 
     @staticmethod
     def _on_disconnect(mosq, obj, rc):
@@ -64,9 +71,8 @@ class DimeDriver:
     @staticmethod
     def _get_client():
         if DimeDriver._client_instance is None:
-            print 'connecting...'
-            DimeDriver._client_instance = mosquitto.Mosquitto("SmartAmericaSCALE" + str(time.time()))
-            DimeDriver._client_instance.connect(BROKER_SERVER, 1883, 60)
+            DimeDriver._client_instance = mosquitto.Mosquitto()#"SmartAmericaSCALE" + str(time.time()))
+            print 'connecting... %d' % DimeDriver._client_instance.connect(BROKER_SERVER, 1883, 60)
             DimeDriver._client_instance.on_message = DimeDriver._on_message
             DimeDriver._client_instance.on_connect = DimeDriver._on_connect
             DimeDriver._client_instance.on_disconnect = DimeDriver._on_disconnect
@@ -83,8 +89,8 @@ class DimeDriver:
         client.loop_stop()
 
 if __name__ == '__main__':
-    DimeDriver.subscribe('iot-1/d/kyle2/#')
-    DimeDriver.subscribe('iot-1/d/7831c1d1c734/#')
+    #DimeDriver.subscribe('iot-1/d/kyle2/#')
+    #DimeDriver.subscribe('iot-1/d/7831c1d1c734/#')
     for i in range(10):
         DimeDriver.publish('iot-1/d/kyle2/evt/smoke/json', 'blahblahpayload %i' % i)
 
