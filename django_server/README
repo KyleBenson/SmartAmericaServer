@@ -1,3 +1,12 @@
+SETUP
+
+If you are running the app locally, run `setup.sh` on your Debian-based Linux platform (uses apt-get, Ubuntu works too).  If using BlueMix, or some other PaaS, you'll need to configure the appropriate services, currently:
+    - postgresql
+    - rabbitMQ (for celery)
+    - Twilio
+
+Run setup_db.sh the first time you create a fresh app (including creating a new DB service on BlueMix!) to get the whole DB setup without user interaction.
+
 GOTCHAS
 
 Memory: you'll need to provide > 1GB of memory for your instance/VM to install django-twilio due to a memory bug with the package 'phonenumbers'. 2GB seems sufficient.

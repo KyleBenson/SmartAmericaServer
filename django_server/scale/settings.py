@@ -21,6 +21,9 @@ DATABASES = {
     }
 }
 
+# broker URL for RabbitMQ, used for Celery
+AMQP_BROKER = 'amqp://guest@localhost//'
+
 # extract necessary information from environment to run our services on BlueMix
 env = os.environ
 try:
@@ -32,6 +35,9 @@ try:
             DATABASES['default']['USER'] = creds['user']
             DATABASES['default']['PASSWORD'] = creds['password']
             DATABASES['default']['NAME'] = creds['name']
+        if k.startswith('rabbitmq'):
+            creds = v[0]['credentials']
+            AMQP_BROKER = creds['url']
         if k.startswith('user-provided'):
             for info in v:
                 if info['name'] == 'Twilio':
@@ -151,7 +157,7 @@ INSTALLED_APPS = (
     # our apps
     'phone',
     'sensors',
-#'analytics',
+    'analytics',
 #'dashboard',
 )
 
