@@ -1,11 +1,11 @@
 from django.conf.urls import patterns, include, url
-
+from django.shortcuts import redirect
 from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('',
-    # Examples:
-    url(r'^$', 'scale.env.print_environment'),
+    url(r'^$', lambda x: redirect('http://smartamerica.org/teams/scale-safe-community-alert-network-a-k-a-public-safety-for-smart-communities/')),
+    #url(r'^env$', 'scale.env.print_environment'),
     url(r'^phone_call$', 'django_twilio.views.say', {
         'text' : 'Hello, world!  This is Twilio.'
         }),
