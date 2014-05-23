@@ -1,6 +1,6 @@
 from django_twilio.client import twilio_client
 from sensors.models import SensedEvent
-import scale
+import scale, os
 
 def analyze(event):
     #TODO: route to other handlers

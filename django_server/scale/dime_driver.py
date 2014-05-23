@@ -1,4 +1,4 @@
-import mosquitto, thread, time, os
+import mosquitto, thread, time
 import sensors
 from analytics import tasks
 
