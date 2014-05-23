@@ -2,6 +2,8 @@ GOTCHAS
 
 Memory: you'll need to provide > 1GB of memory for your instance/VM to install django-twilio due to a memory bug with the package 'phonenumbers'. 2GB seems sufficient.
 
+Multiple instances: careful of running multiple instances of the same program connected to the same MQTT broker!  You'll easily create cascading duplicates as each instance escalates / responds to messages.
+
 ENVIRONMENT VARIABLES
 
 You'll need to use `cf set-env` to define the following env vars:

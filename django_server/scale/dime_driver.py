@@ -1,5 +1,6 @@
 import mosquitto, thread, time, os
-from twilio.rest import TwilioRestClient
+import sensors
+from analytics import tasks
 
 # switch these lines to change brokers
 BROKER_SERVER = "m2m.eclipse.org"
@@ -17,32 +18,14 @@ class DimeDriver:
     def _on_message(mosq, obj, msg):
         #TODO: wrap in debug
         print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
-        #TODO: remove all possible/confirmed instances, that should be a field
-        #TODO: how to split up the topic and modify fields as appropriate?
-        if 'smoke' in msg.topic:
-            # ignore regular intervals for now
-            # TODO: low battery warnings!
-            FIRE_ALARM_VOLTAGE_THRESHOLD = 0x300
-            voltage_level = str(msg.payload)
-            if not voltage_level.startswith('0x'):
-                voltage_level = '0x' + voltage_level
-            voltage_level = int(voltage_level, 0) #0 says guess base of int
-            if voltage_level > FIRE_ALARM_VOLTAGE_THRESHOLD:
-                # not a fire
-                return
-
-            topic = msg.topic.replace('smoke', 'possible_fire')
-            topic = topic.split('/')
-            topic[2] = 'test' #change device id
-            topic = '/'.join(topic)
-            DimeDriver.publish(topic, str(msg.payload))
-        elif 'possible_fire' in msg.topic:
-            client = TwilioRestClient()
-            #TODO: allow use of phrase help
-            message = client.messages.create(to="+1%s" % os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.", _from=os.environ.get("TWILIO_PHONE_NUMBER"))
-            DimeDriver.publish(msg.topic.replace('possible_fire', 'confirmed_fire'), str(msg.payload))
-            #TODO: confirm alert or escalate asynchronously
-            #threading.Timer(interval, function, args=[], kwargs={})
+        event = msg.topic.split('/')
+        #TODO: create if not exists
+        device = sensors.models.Device(id=event[2])
+        event_type = event[4]
+        if event[5] != 'json':
+            print('Unsupported payload format %s' % event[5])
+        event = sensors.models.SensedEvent(device=device, type=event_type, data=str(msg.payload))
+        tasks.analyze(event)
 
     @staticmethod
     def _on_disconnect(mosq, obj, rc):
@@ -65,7 +48,7 @@ class DimeDriver:
 
     @staticmethod
     def _on_log(mosq, obj, level, string):
-        print(string)
+        print("Log:  %s" % string)
 
     @staticmethod
     def publish(topic, payload):
@@ -73,6 +56,10 @@ class DimeDriver:
         ret = client.publish(topic, payload)
         #may have to disconnect and reconnect each time: DimeDriver._dispose_client(client)
         return ret
+
+    @staticmethod
+    def publish_event(event):
+        DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (event.device_id, event.type), event.data)
 
     @staticmethod
     def subscribe(topic="iot-1/d/+/evt/+/json", qos=0):
@@ -85,7 +72,7 @@ class DimeDriver:
     @staticmethod
     def _get_client():
         if DimeDriver._client_instance is None:
-            DimeDriver._client_instance = mosquitto.Mosquitto()#"SmartAmericaSCALE" + str(time.time()))
+            DimeDriver._client_instance = mosquitto.Mosquitto()
             print 'connecting... %d' % DimeDriver._client_instance.connect(BROKER_SERVER, 1883, 60)
             DimeDriver._client_instance.on_message = DimeDriver._on_message
             DimeDriver._client_instance.on_connect = DimeDriver._on_connect
