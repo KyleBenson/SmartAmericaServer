@@ -1,7 +1,7 @@
 import mosquitto, thread, time
 import sensors
 from analytics import tasks
-
+from django.core.exceptions import ObjectDoesNotExist
 # switch these lines to change brokers
 BROKER_SERVER = "m2m.eclipse.org"
 BROKER_SERVER = "dime.smartamerica.io"
@@ -20,11 +20,16 @@ class DimeDriver:
         print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
         event = msg.topic.split('/')
         #TODO: create if not exists
-        device = sensors.models.Device(id=event[2])
+        try:
+            device = sensors.models.Device.objects.get(device_id=event[2])
+        except ObjectDoesNotExist:
+            device = sensors.models.Device(device_id=event[2])
+            device.save()
         event_type = event[4]
         if event[5] != 'json':
             print('Unsupported payload format %s' % event[5])
         event = sensors.models.SensedEvent(device=device, type=event_type, data=str(msg.payload))
+        event.save()
         tasks.analyze(event)
 
     @staticmethod

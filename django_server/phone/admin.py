@@ -1,3 +1,4 @@
 from django.contrib import admin
+from phone import models
 
-# Register your models here.
+admin.site.register(models.Contact)

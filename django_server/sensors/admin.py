@@ -1,3 +1,6 @@
 from django.contrib import admin
+from sensors import models
 
-# Register your models here.
+admin.site.register(models.SensedEvent)
+admin.site.register(models.Device)
+admin.site.register(models.Alert)

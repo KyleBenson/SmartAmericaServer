@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from django_twilio.client import twilio_client
-from sensors.models import SensedEvent
+from sensors.models import SensedEvent, Device, Alert
 import scale, os
 from .celery import celery_engine
 
@@ -34,8 +34,13 @@ def analyze(event):
     if 'smoke' in event.type:
         smoke_analysis(event)
     elif 'possible_fire' in event.type:
-        #TODO: allow use of phrase help
-        message = twilio_client.messages.create(to=os.environ.get("PHONE_NUMBER"), body="Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.", _from=os.environ.get("TWILIO_PHONE_NUMBER"))
+        for contact in event.device.owner.all():
+            Alert(source_event=event, contact=contact).save()
+            message = twilio_client.messages.create(to=contact.phone_number,
+                                                    body="Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.",
+                                                    _from=os.environ.get("TWILIO_PHONE_NUMBER"))
+
+    elif 'blahblah' in event.type:
         event.type = 'confirmed_fire'
         scale.dime_driver.DimeDriver.publish_event(event)
         #TODO: confirm alert or escalate asynchronously
