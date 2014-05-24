@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 import pprint
 import os, yaml
-from scale.dime_driver import DimeDriver
+from scale import DimeDriver
 from sensors.models import SensedEvent
 
 def print_environment(request):

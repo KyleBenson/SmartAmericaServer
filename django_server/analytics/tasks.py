@@ -29,7 +29,7 @@ def smoke_analysis(event):
         return
 
     event.event_type = 'possible_fire'
-    scale.dime_driver.DimeDriver.publish_event(event)
+    scale.DimeDriver.publish_event(event)
 
 @celery_engine.task()
 def check_event_status(event):
@@ -68,6 +68,6 @@ def analyze(event):
 
     elif 'blahblah' in event.event_type:
         event.event_type = 'confirmed_fire'
-        scale.dime_driver.DimeDriver.publish_event(event)
+        scale.DimeDriver.publish_event(event)
         #TODO: confirm alert or escalate asynchronously
         #threading.Timer(interval, function, args=[], kwargs={})

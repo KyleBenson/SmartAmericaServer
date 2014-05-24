@@ -1,9 +1,10 @@
 from django.http import HttpResponse
 from twilio import twiml
-from sensors.models import Alert, Device
+from sensors.models import Alert, Device, SensedEvent
 from phone.models import Contact
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
+import scale
 import os
 
 #TODO: clean up this rather ugly code and move the alerting logic outside the views
@@ -38,7 +39,10 @@ def sms_handler(request):
     response_message = None
 
     # handle (un)subscribing first
-    if 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
+    if 'demo' in msg:
+        event = SensedEvent(event_type='smoke', device_id='demo', data='0123')
+        scale.DimeDriver.publish_event(event)
+    elif 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
         try:
             contact = Contact.objects.get(phone_number=contact_number)
             contact.delete()
