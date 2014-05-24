@@ -10,7 +10,7 @@ class Device(models.Model):
     it lives on.
     """
     device_id = models.CharField(max_length=100, primary_key=True)
-    owner = models.ManyToManyField(Contact)
+    contact = models.ManyToManyField(Contact)
 
 class SensedEvent(TimeStampedModel):
     """
@@ -22,7 +22,7 @@ class SensedEvent(TimeStampedModel):
         #abstract = True
 
     device = models.ForeignKey(Device)
-    type = models.CharField(max_length=100)
+    event_type = models.CharField(max_length=100)
     #TODO: self.priority = priority
     data = JSONField()
     active = models.BooleanField(default=True)

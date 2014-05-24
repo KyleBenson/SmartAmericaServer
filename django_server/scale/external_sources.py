@@ -11,7 +11,6 @@ def sigfox(request):
 
     #TODO: get sensor type
     sensor_type = 'smoke'
-    print data
     DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, sensor_type), str(data))
 
     return HttpResponse(response, content_type="text/plain")

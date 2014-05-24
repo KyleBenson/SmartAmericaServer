@@ -11,7 +11,7 @@ if __name__ == "__main__":
     if not dime_running:
         dime_running = True
         from scale.dime_driver import DimeDriver
-        DimeDriver.subscribe("iot-1/d/test/evt/+/json")
+        DimeDriver.subscribe("iot-1/d/+/evt/+/json")
 
     from django.core.management import execute_from_command_line
 

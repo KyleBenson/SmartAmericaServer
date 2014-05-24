@@ -17,7 +17,8 @@ class DimeDriver:
     @staticmethod
     def _on_message(mosq, obj, msg):
         #TODO: wrap in debug
-        print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
+        if 'test' in msg.topic or 'demo' in msg.topic:
+            print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
         event = msg.topic.split('/')
         #TODO: create if not exists
         try:
@@ -28,7 +29,7 @@ class DimeDriver:
         event_type = event[4]
         if event[5] != 'json':
             print('Unsupported payload format %s' % event[5])
-        event = sensors.models.SensedEvent(device=device, type=event_type, data=str(msg.payload))
+        event = sensors.models.SensedEvent(device=device, event_type=event_type, data=str(msg.payload))
         event.save()
         tasks.analyze(event)
 
@@ -64,7 +65,7 @@ class DimeDriver:
 
     @staticmethod
     def publish_event(event):
-        DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (event.device_id, event.type), event.data)
+        DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (event.device_id, event.event_type), event.data)
 
     @staticmethod
     def subscribe(topic="iot-1/d/+/evt/+/json", qos=0):

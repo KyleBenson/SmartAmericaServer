@@ -1,1 +1,3 @@
 */fixtures/
+celeryd.pid
+celery.log
