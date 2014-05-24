@@ -5,7 +5,8 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     url(r'^$', lambda x: redirect('http://smartamerica.org/teams/scale-safe-community-alert-network-a-k-a-public-safety-for-smart-communities/')),
-    #url(r'^env$', 'scale.env.print_environment'),
+    #url(r'^env$', 'scale.views.print_environment'),
+    url(r'^demo$', 'scale.views.run_demo'),
     url(r'^phone_call$', 'django_twilio.views.say', {
         'text' : 'Hello, world!  This is Twilio.'
         }),
