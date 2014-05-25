@@ -13,12 +13,8 @@ urlpatterns = patterns('',
     url(r'^sms$', 'phone.views.sms_handler'),
     url(r'^test_rest$', 'scale.test.test_rest'),
     url(r'^sigfox$', 'scale.external_sources.sigfox'),
-    # url(r'^$', 'app.twilio.text'),
-    # url(r'^text$', 'app.twilio.text'),
-    # url(r'^app/', include('app.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
-
-     url(r'^admin/', include(admin.site.urls)),
+    url(r'^admin/', include(admin.site.urls)),
 )

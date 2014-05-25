@@ -2,8 +2,8 @@ from __future__ import absolute_import
 import os
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scale.settings')
-from celery import Celery
 from django.conf import settings
+from celery import Celery
 
 celery_engine = Celery('analytics', broker=settings.AMQP_BROKER)
 

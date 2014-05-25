@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 import pprint
 import os, yaml
-from scale import DimeDriver
+from dime_driver import DimeDriver
 from sensors.models import SensedEvent
 
 def print_environment(request):
@@ -22,7 +22,12 @@ def run_demo(request):
     try:
         data = request.GET['data']
     except KeyError:
-        data = '0123'
+        data = {'d' :
+                {'value' : '0x0123',
+                 'event' : event_type,
+                }
+               }
+
     event = SensedEvent(event_type=event_type, device_id='demo', data=data)
     DimeDriver.publish_event(event)
     return HttpResponse('demo for event %s started' % event_type, content_type="text/plain")

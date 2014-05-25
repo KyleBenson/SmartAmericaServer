@@ -1,7 +1,6 @@
-import mosquitto, thread, time
-import sensors
-from analytics import tasks
+import mosquitto, thread, time, json
 from django.core.exceptions import ObjectDoesNotExist
+import sensors.models
 # switch these lines to change brokers
 BROKER_SERVER = "m2m.eclipse.org"
 BROKER_SERVER = "dime.smartamerica.io"
@@ -16,22 +15,35 @@ class DimeDriver:
 
     @staticmethod
     def _on_message(mosq, obj, msg):
+        # lazy imports to fix circular importing stuff
+        import analytics.tasks
+
         #TODO: wrap in debug
         if 'test' in msg.topic or 'demo' in msg.topic:
             print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
+
+        # extract event data
         event = msg.topic.split('/')
-        #TODO: create if not exists
         try:
             device = sensors.models.Device.objects.get(device_id=event[2])
         except ObjectDoesNotExist:
-            device = sensors.models.Device(device_id=event[2])
-            device.save()
+            device = sensors.models.Device.objects.create(device_id=event[2])
         event_type = event[4]
         if event[5] != 'json':
             print('Unsupported payload format %s' % event[5])
-        event = sensors.models.SensedEvent(device=device, event_type=event_type, data=str(msg.payload))
+
+        try:
+            data = json.loads(str(msg.payload))
+        except:
+            print("ERROR parsing JSON payload: %s" % msg.payload)
+            return
+
+        #TODO: get from DB if already created?
+        event = sensors.models.SensedEvent(device=device,
+                                           event_type=event_type,
+                                           data=data)
         event.save()
-        tasks.analyze(event)
+        analytics.tasks.analyze(event)
 
     @staticmethod
     def _on_disconnect(mosq, obj, rc):
@@ -65,7 +77,26 @@ class DimeDriver:
 
     @staticmethod
     def publish_event(event):
-        DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (event.device_id, event.event_type), event.data)
+        DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (event.device_id, event.event_type), json.dumps(event.data))
+
+    @staticmethod
+    def publish_alert(alert):
+        """
+        Converts an Alert object into a SensedEvent message since that's the unified interface
+        for publishing messages via DIME
+        """
+        #TODO: combine with publish_event since Alert should be a Child class of SensedEvent
+        event = alert.source_event
+        data = event.data
+        data['d']['source_event'] = event.pk
+        data['d']['response'] = alert.response
+        #TODO: escalated status?
+        #TODO: contact?
+
+        event.event_type = 'alert'
+        event.data = json.dumps(data)
+
+        DimeDriver.publish_event(event)
 
     @staticmethod
     def subscribe(topic="iot-1/d/+/evt/+/json", qos=0):

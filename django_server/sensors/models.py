@@ -1,7 +1,9 @@
+import os
 from django.db import models
 from phone.models import Contact
 from model_utils.models import TimeStampedModel
 from json_field import JSONField
+from django_twilio.client import twilio_client
 
 class Device(models.Model):
     """
@@ -22,6 +24,7 @@ class SensedEvent(TimeStampedModel):
         #abstract = True
 
     device = models.ForeignKey(Device)
+    source_event = models.ForeignKey('self', null=True) # more abstract events (e.g. fire) derive from other events (e.g. smoke)
     event_type = models.CharField(max_length=100)
     #TODO: self.priority = priority
     data = JSONField()
@@ -35,3 +38,11 @@ class Alert(TimeStampedModel):
     contact = models.ForeignKey(Contact)
     response = models.CharField(max_length=20, default="unconfirmed") # unconfirmed, confirmed, rejected   
     #TODO: how to handle multiple outstanding alerts?  multiple phone #'s?
+
+    def send(self, msg):
+        """
+        Sends an alert message via Twilio for confirmation
+        """
+        twilio_client.messages.create(to=self.contact.phone_number,
+                                      body=msg,
+                                      _from=os.environ.get("TWILIO_PHONE_NUMBER"))

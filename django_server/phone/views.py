@@ -10,8 +10,6 @@ import os
 #TODO: clean up this rather ugly code and move the alerting logic outside the views
 
 DEFAULT_RESPONSE_MESSAGE = "Thank you for contacting the Safe Community Alerting Network.  Everything seems fine."
-ALERT_REJECTED_MESSAGE = "Glad to hear you are okay.  This alert has been canceled; have a nice day!"
-ALERT_CONFIRMED_MESSAGE = "Emergency personnel are being dispatched to your house!"
 NOT_REGISTERED_MESSAGE = "You are not currently registered with our database."
 REGISTERED_MESSAGE = "You are now registered in our database and will receive alerts if we detect a potential emergency in your home."
 UNREGISTERED_MESSAGE = "Your contact information has been removed from the database.  Thank you for participating in this demo!"
@@ -40,7 +38,11 @@ def sms_handler(request):
 
     # handle (un)subscribing first
     if 'demo' in msg:
-        event = SensedEvent(event_type='smoke', device_id='demo', data='0123')
+        event = SensedEvent(event_type='smoke', device_id='demo',
+                            data={'d' : 
+                                  {'event' : 'smoke',
+                                   'value' : '0x0123'}
+                                 })
         scale.DimeDriver.publish_event(event)
     elif 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
         try:
@@ -71,16 +73,16 @@ def sms_handler(request):
         try:
             # try correlating contact number with an outstanding event
             #TODO: rather than assume an Alert is over when source event is inactive, perhaps we should have an explicit active field on the Alert itself?
-            alert = Alert.objects.filter(contact__phone_number=contact_number, source_event__active=True).order_by('-created')[0]
+            alert = Alert.objects.filter(contact__phone_number=contact_number,
+                                         source_event__active=True).order_by('-created')[0]
             if 'emergency' in msg:
                 alert.response = 'confirmed' #TODO: functionalize
                 alert.save()
-                response_message = ALERT_CONFIRMED_MESSAGE
-                #TODO: escalate event / dispatch emergency personnel
+                scale.DimeDriver.publish_alert(alert)
             elif 'okay' in msg:
                 alert.response = 'rejected' #TODO: same
                 alert.save()
-                response_message = ALERT_REJECTED_MESSAGE
+                scale.DimeDriver.publish_alert(alert)
             else:
                 # not an alert-related message, throw to default
                 raise IndexError

@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     # subscribe to sensed data and events
     #TODO: ensure this only runs once and maybe remove the --noreload option from run.sh
-    if not dime_running:
+    if not dime_running and 'syncdb' not in sys.argv:
         dime_running = True
         from scale import DimeDriver
         DimeDriver.subscribe("iot-1/d/+/evt/+/json")
