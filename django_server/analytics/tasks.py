@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from sensors.models import SensedEvent, Device, Alert
 from .celery import celery_engine
 import scale, os
+from datetime import datetime, timedelta
 
 # time to wait before checking if an event was confirmed before escalating
 # TODO: put in some config file
@@ -11,10 +12,12 @@ EVENT_CHECK_DELAY = 15
 #TODO: move elsewhere
 ALERT_REJECTED_MESSAGE = "Glad to hear you are okay.  This alert has been canceled; have a nice day!"
 ALERT_CONFIRMED_MESSAGE = "Emergency personnel are being dispatched to your house!"
+EVENT_ACTIVE_TIME = timedelta(seconds=60)
 
-@celery_engine.task(bind=True)
-def debug_task(self):
-    print('Request: {0!r}'.format(self.request))
+@celery_engine.task()
+def deactivate_events():
+    cutoff_time = datetime.now() - EVENT_ACTIVE_TIME
+    SensedEvent.objects.filter(active=True, modified__lte=cutoff_time).update(active=False)
 
 @celery_engine.task()
 def smoke_analysis(event):

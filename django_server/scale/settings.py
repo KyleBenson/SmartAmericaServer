@@ -23,6 +23,13 @@ DATABASES = {
 
 # broker URL for RabbitMQ, used for Celery
 AMQP_BROKER = 'amqp://guest@localhost//'
+from datetime import timedelta
+CELERYBEAT_SCHEDULE = {
+    'deactivate_events' : {
+        'task' : 'analytics.tasks.deactivate_events',
+        'schedule' : timedelta(seconds=5)
+    },
+}
 
 # extract necessary information from environment to run our services on BlueMix
 env = os.environ
