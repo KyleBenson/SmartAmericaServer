@@ -1,12 +1,9 @@
 from __future__ import absolute_import
-from sensors.models import SensedEvent, Device, Alert
+from sensors.models import SensedEvent, Device, Alert, EMERGENCY_EVENT
+from phone.messages import ALERT_CONFIRMED_MESSAGE
 from .celery import celery_engine
 import scale, os
 from datetime import datetime, timedelta
-
-ALERT_REJECTED_MESSAGE = "Glad to hear you are okay.  \
-        This alert has been canceled; have a nice day!"
-ALERT_CONFIRMED_MESSAGE = "Emergency personnel are being dispatched to your house!"
 
 # TODO: put these in some config file
 # time to wait before checking if an event was confirmed before escalating
@@ -94,8 +91,9 @@ def alert_analysis(event):
         msg = ALERT_CONFIRMED_MESSAGE
     elif event.data['d']['response'] == 'unconfirmed':
         msg = ALERT_CONFIRMED_MESSAGE
-    elif event.data['d']['response'] == 'rejected':
-        msg = ALERT_REJECTED_MESSAGE
+    # not in use currently...
+    #elif event.data['d']['response'] == 'rejected':
+        #msg = ALERT_REJECTED_MESSAGE
 
     # find all other alerts that stemmed from the source of this alert and notify contacts
     alerts = Alert.objects.filter(source_event__id=event.data['d']['source_event'])
@@ -121,8 +119,7 @@ def analyze(event):
     """
     #TODO: move to new celery task of its own
     #TODO: check for duplicates
-    if 'alert' in event.event_type:
-        #TODO: alert is overloaded, change to emergency?
+    if EMERGENCY_EVENT in event.event_type:
         alert_analysis.delay(event)
     elif 'smoke' in event.event_type:
         smoke_analysis.delay(event)

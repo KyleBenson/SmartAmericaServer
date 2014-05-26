@@ -1,7 +1,8 @@
 from django.http import HttpResponse
 from twilio import twiml
-from sensors.models import Alert, Device, SensedEvent
+from sensors.models import Alert, Device, SensedEvent, EMERGENCY_EVENT
 from phone.models import Contact
+from phone.messages import ALERT_CONFIRMED_MESSAGE, ALERT_REJECTED_MESSAGE
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
 import scale
@@ -75,14 +76,24 @@ def sms_handler(request):
             #TODO: rather than assume an Alert is over when source event is inactive, perhaps we should have an explicit active field on the Alert itself?
             alert = Alert.objects.filter(contact__phone_number=contact_number,
                                          source_event__active=True).order_by('-created')[0]
+            #TODO: handle responses after EmergencyEvent has been generated? cancelling, late confirmation, etc.
             if 'emergency' in msg:
                 alert.response = 'confirmed' #TODO: functionalize
                 alert.save()
-                scale.DimeDriver.publish_alert(alert)
+
+                # If we've already created an EmergencyEvent associated with this alert,
+                # perhaps from family member confirming the emergency already,
+                # don't publish one again.
+                if not SensedEvent.objects.filter(event_type=EMERGENCY_EVENT,
+                                                  source_event=alert.source_event).exists():
+                    scale.DimeDriver.publish_alert(alert)
+                else:
+                    response_message = "We've already received your response; " + ALERT_CONFIRMED_MESSAGE
             elif 'okay' in msg:
                 alert.response = 'rejected' #TODO: same
                 alert.save()
-                scale.DimeDriver.publish_alert(alert)
+                response_message = ALERT_REJECTED_MESSAGE
+                #TODO: eventually send WE'RE OKAY notifications?: scale.DimeDriver.publish_alert(alert)
             else:
                 # not an alert-related message, throw to default
                 raise IndexError

@@ -38,10 +38,16 @@ class DimeDriver:
             print("ERROR parsing JSON payload: %s" % msg.payload)
             return
 
+        try:
+            source_event = sensors.models.SensedEvent.objects.get(pk=data['d']['source_event'])
+        except:
+            source_event = None
+
         #TODO: get from DB if already created?
         event = sensors.models.SensedEvent(device=device,
                                            event_type=event_type,
-                                           data=data)
+                                           data=data,
+                                           source_event=source_event)
         event.save()
         analytics.tasks.analyze(event)
 
@@ -90,13 +96,14 @@ class DimeDriver:
         #TODO: combine with publish_event since Alert should be a Child class of SensedEvent
         event = alert.source_event
         data = event.data
+        #TODO: handle this via model field
         data['d']['source_event'] = event.pk
         data['d']['response'] = alert.response
         #TODO: escalated status?
         #TODO: contact?
 
-        event.event_type = 'alert'
-        event.data = json.dumps(data)
+        event.event_type = sensors.models.EMERGENCY_EVENT
+        event.data = data
 
         DimeDriver.publish_event(event)
 

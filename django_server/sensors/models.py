@@ -5,6 +5,9 @@ from model_utils.models import TimeStampedModel
 from json_field import JSONField
 from django_twilio.client import twilio_client
 
+#TODO: alert is overloaded, change to emergency?
+EMERGENCY_EVENT = 'alert'
+
 class Device(models.Model):
     """
     A device may be a physical sensor device, or it may be a unique
