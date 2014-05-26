@@ -4,35 +4,69 @@ from .celery import celery_engine
 import scale, os
 from datetime import datetime, timedelta
 
-# time to wait before checking if an event was confirmed before escalating
-# TODO: put in some config file
-EVENT_CHECK_DELAY = 15
-
-# messages to send in response to alerts
-#TODO: move elsewhere
-ALERT_REJECTED_MESSAGE = "Glad to hear you are okay.  This alert has been canceled; have a nice day!"
+ALERT_REJECTED_MESSAGE = "Glad to hear you are okay.  \
+        This alert has been canceled; have a nice day!"
 ALERT_CONFIRMED_MESSAGE = "Emergency personnel are being dispatched to your house!"
+
+# TODO: put these in some config file
+# time to wait before checking if an event was confirmed before escalating
+EVENT_CHECK_DELAY = 15
 EVENT_ACTIVE_TIME = timedelta(seconds=60)
+EVENT_DUPLICATE_TIME = timedelta(seconds=30)
 
 @celery_engine.task()
 def deactivate_events():
     cutoff_time = datetime.now() - EVENT_ACTIVE_TIME
     SensedEvent.objects.filter(active=True, modified__lte=cutoff_time).update(active=False)
 
-@celery_engine.task()
-def smoke_analysis(event):
-    event_type = event.event_type
-    print(event.data)
+def is_possible_fire(event):
+    """
+    check the voltage reading to determine if the alarm is going off
+    """
     data = event.data['d']['value']
-    # ignore regular intervals for now
-
-    # check the voltage reading to determine if the alarm is going off
     # TODO: low battery warnings!
     FIRE_ALARM_VOLTAGE_THRESHOLD = 0x0200
     voltage_level = int(data, 0) #0 says guess base of int
-    if voltage_level < FIRE_ALARM_VOLTAGE_THRESHOLD:
-        event.event_type = 'fire'
-        scale.DimeDriver.publish_event(event)
+    return voltage_level < FIRE_ALARM_VOLTAGE_THRESHOLD
+
+@celery_engine.task()
+def smoke_analysis(event):
+    if is_possible_fire(event):
+        # Possible emergency, but check if this is a duplicate first, which is
+        # defined as active and occurring within EVENT_DUPLICATE_TIME of another event
+        # that would be considered an anomaly.  Note that this could theoretically extend a
+        # a cluster of events considered duplicates indefinitely, so we must choose this
+        # constant carefully, especially for emergencies like FIRE that may be controlled,
+        # dismissed, and then start up again within a short amount of time.
+
+        # TODO: should we only look at events within EVENT_DUPLICATE_TIME of now?
+        # Perhaps such a long-lived event should send another Alert if it's still active?
+
+        recent_events = SensedEvent.objects.filter(device=event.device,
+                                                   event_type=event.event_type,
+                                                   active=True).exclude(pk=event.pk).order_by('-created')
+        # if we make it through without breaking, we found a huge cluster of one event
+        # if the queryset was empty, this is clearly an original event!
+        is_original = False if recent_events else True
+        last_anomaly_time = event.created
+
+        for revent in recent_events:
+            if (last_anomaly_time - revent.created < EVENT_DUPLICATE_TIME) and is_possible_fire(revent):
+                # not orignal event
+                break
+            if last_anomaly_time - revent.created > EVENT_DUPLICATE_TIME:
+                # stop looking as we've reached the end of the 
+                # possible anomaly cluster without finding other significant events
+                is_original = True
+                break
+            if is_possible_fire(revent):
+                # move the boundary of the cluster
+                last_anomaly_time = revent.created
+
+        if is_original:
+            # this is the first event in recent history, publish the possible emergency
+            event.event_type = 'fire'
+            scale.DimeDriver.publish_event(event)
 
 @celery_engine.task()
 def check_alert_status(event):
@@ -73,7 +107,6 @@ def fire_analysis(event):
     """
     Send Alert messages to all Contacts associated with this event.
     """
-    print("FIRE!!!")
     for contact in event.device.contact.all():
         alert = Alert.objects.create(source_event=event, contact=contact)
         #TODO: perhaps publish alert events and then contact via phone in response to that event?

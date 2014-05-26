@@ -3,7 +3,7 @@ python manage.py syncdb --noinput
 
 # start celery worker node and beat for periodic tasks
 rm celery.log 2> /dev/null
-celery -A analytics worker -l debug --detach --logfile=celery.log --pidfile=celery_worker.pid
+celery -A analytics worker -l warn --detach --logfile=celery.log --pidfile=celery_worker.pid
 celery -A analytics beat --logfile=celery_beat.log --pidfile=celery_beat.pid --detach
 
 # get web server port from environment if using BlueMix, otherwise specify it directly

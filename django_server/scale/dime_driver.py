@@ -73,6 +73,8 @@ class DimeDriver:
         client = DimeDriver._get_client()
         ret = client.publish(topic, payload)
         #may have to disconnect and reconnect each time: DimeDriver._dispose_client(client)
+        if not ret:
+            print("Publishing error: %d" % ret)
         return ret
 
     @staticmethod
@@ -110,12 +112,12 @@ class DimeDriver:
     def _get_client():
         if DimeDriver._client_instance is None:
             DimeDriver._client_instance = mosquitto.Mosquitto()
-            print 'connecting... %d' % DimeDriver._client_instance.connect(BROKER_SERVER, 1883, 60)
             DimeDriver._client_instance.on_message = DimeDriver._on_message
             DimeDriver._client_instance.on_connect = DimeDriver._on_connect
             DimeDriver._client_instance.on_disconnect = DimeDriver._on_disconnect
             DimeDriver._client_instance.on_publish = DimeDriver._on_publish
             DimeDriver._client_instance.on_subscribe = DimeDriver._on_subscribe
+            print 'connecting... %d' % DimeDriver._client_instance.connect(BROKER_SERVER, 1883, 60)
         return DimeDriver._client_instance
 
     @staticmethod
