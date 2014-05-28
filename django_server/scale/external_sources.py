@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 from dime_driver import DimeDriver
-import os, json
+import os, json, ctypes
 
 def sigfox(request):
     device_id = request.GET.get("id")
@@ -21,6 +21,7 @@ def sigfox(request):
         data = {'d':
                 {'event' : 'smoke',
                  'value' : str(data),
+                 'prio_value' : '10',
                  'timestamp' : timestamp,
                  'device' : {'id' : device_id,
                              'type' : 'sigfox',
@@ -29,8 +30,50 @@ def sigfox(request):
                 }
                }
     else:
-        raise NotImplementedException("GUOXI will implement this!")
-        #TODO: set data, sensor_type, and device_id
+        #Divided Sigfox Message data into Segments
+        event_type_encoded = data[0:2]
+        vd_encoded = data[2:6]
+        value_encoded = data[6:22]
+        priority_encoded = data[22]
+        cb_encoded = data[23]
+
+        # 1. Decode Type
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        type_file = open(dirname+"/"+"event_type_server.json", "rt")
+        type_stream = type_file.read()
+        type_info = json.loads(type_stream)
+
+        try:
+            event_type_original = type_info[event_type_encoded]
+        except KeyError:
+            print "Unknown Event Code: " + event_type_encoded
+            return False
+
+        # 2. Decode Value Descriptor
+
+        # 3. Decode Value
+        value_1 = value_encoded[0:8]
+        value_original = str(ctypes.c_float.from_buffer(ctypes.c_int(int(value_1,16))).value)
+
+        # 4. Decode Priority
+        priority_original = str(int(priority_encoded, 16))
+
+        # 5. Decode Control Bits
+
+        # Generate JSON data
+	data = {'d' :
+               {'event' : event_type_original,
+                'value' : value_original,
+                'prio_value' : priority_original,
+                'timestamp' : timestamp,
+                'device' : {'id' : device_id,
+                               'type' : 'sigfox',
+                               'version' : '0.1'},
+                'misc' : {'signal' : signal}
+		}
+		}
+
+
 
     DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, sensor_type), json.dumps(data))
 
