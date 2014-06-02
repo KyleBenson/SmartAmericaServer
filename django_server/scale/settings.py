@@ -7,6 +7,9 @@ ADMINS = (
     ('Kyle Benson', 'kyle.edward.benson@gmail.com'),
 )
 
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
 MANAGERS = ADMINS
 
 DATABASES = {
@@ -22,7 +25,7 @@ DATABASES = {
 }
 
 # broker URL for RabbitMQ, used for Celery
-AMQP_BROKER = 'amqp://guest@localhost//'
+BROKER_URL = 'amqp://guest@localhost//'
 from datetime import timedelta
 CELERYBEAT_SCHEDULE = {
     'deactivate_events' : {
@@ -44,7 +47,7 @@ try:
             DATABASES['default']['NAME'] = creds['name']
         if k.startswith('rabbitmq'):
             creds = v[0]['credentials']
-            AMQP_BROKER = creds['url']
+            BROKER_URL = creds['url']
         if k.startswith('user-provided'):
             for info in v:
                 if info['name'] == 'Twilio':
@@ -104,6 +107,7 @@ STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
+    os.path.join(BASE_DIR, 'static'),
 )
 
 # List of finder classes that know how to find static files in

@@ -2,9 +2,14 @@
 python manage.py syncdb --noinput
 
 # start celery worker node and beat for periodic tasks
+#TODO: move celery startup to do this in python so it isn't so ugly
+#here we have to pull the broker URL out of Django's settings with some ugly scripting
+AMQP_BROKER=`echo "from django.conf import settings
+print settings.BROKER_URL" | ./manage.py shell | awk '{print $3}'`
+
 rm celery.log 2> /dev/null
-celery -A analytics worker -l warn --detach --logfile=celery.log --pidfile=celery_worker.pid
-celery -A analytics beat --logfile=celery_beat.log --pidfile=celery_beat.pid --detach
+#celery -A analytics worker -l debug --detach --logfile=celery.log --pidfile=celery_worker.pid -b "$AMQP_BROKER"
+#celery -A analytics beat --logfile=celery_beat.log --pidfile=celery_beat.pid --detach -b "$AMQP_BROKER"
 
 # get web server port from environment if using BlueMix, otherwise specify it directly
 if [ -z "$VCAP_APP_PORT" ];

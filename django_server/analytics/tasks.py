@@ -1,20 +1,25 @@
 from __future__ import absolute_import
-from sensors.models import SensedEvent, Device, Alert, EMERGENCY_EVENT
+from sensors.models import SensedEvent, Alert, EMERGENCY_EVENT
 from phone.messages import ALERT_CONFIRMED_MESSAGE
 from .celery import celery_engine
-import scale, os
+import scale
 from datetime import datetime, timedelta
 
 # TODO: put these in some config file
 # time to wait before checking if an event was confirmed before escalating
 EVENT_CHECK_DELAY = 15
-EVENT_ACTIVE_TIME = timedelta(seconds=60)
-EVENT_DUPLICATE_TIME = timedelta(seconds=30)
+EVENT_ACTIVE_TIME = timedelta(seconds=30)
+EVENT_DUPLICATE_TIME = timedelta(seconds=5)
+
+# Celery wasn't running on BlueMix so we can deactivate it there
+USING_CELERY = False
 
 @celery_engine.task()
 def deactivate_events():
     cutoff_time = datetime.now() - EVENT_ACTIVE_TIME
-    SensedEvent.objects.filter(active=True, modified__lte=cutoff_time).update(active=False)
+    SensedEvent.objects.filter(active=True,
+                               modified__lte=cutoff_time).update(active=False)
+
 
 def is_possible_fire(event):
     """
@@ -23,15 +28,18 @@ def is_possible_fire(event):
     data = event.data['d']['value']
     # TODO: low battery warnings!
     FIRE_ALARM_VOLTAGE_THRESHOLD = 0x0200
-    voltage_level = int(data, 0) #0 says guess base of int
+    voltage_level = int(data, 0) # 0 says guess base of int
     return voltage_level < FIRE_ALARM_VOLTAGE_THRESHOLD
+
 
 @celery_engine.task()
 def smoke_analysis(event):
+    print event
+
     if is_possible_fire(event):
         # Possible emergency, but check if this is a duplicate first, which is
         # defined as active and occurring within EVENT_DUPLICATE_TIME of another event
-        # that would be considered an anomaly.  Note that this could theoretically extend a
+        # that would be considered an anomaly.  Note that this could theoretically extend
         # a cluster of events considered duplicates indefinitely, so we must choose this
         # constant carefully, especially for emergencies like FIRE that may be controlled,
         # dismissed, and then start up again within a short amount of time.
@@ -39,9 +47,11 @@ def smoke_analysis(event):
         # TODO: should we only look at events within EVENT_DUPLICATE_TIME of now?
         # Perhaps such a long-lived event should send another Alert if it's still active?
 
-        recent_events = SensedEvent.objects.filter(device=event.device,
-                                                   event_type=event.event_type,
-                                                   active=True).exclude(pk=event.pk).order_by('-created')
+        recent_events = SensedEvent.objects.filter(
+            device=event.device,
+            event_type=event.event_type,
+            active=True).exclude(pk=event.pk).order_by('-created')
+
         # if we make it through without breaking, we found a huge cluster of one event
         # if the queryset was empty, this is clearly an original event!
         is_original = False if recent_events else True
@@ -50,9 +60,10 @@ def smoke_analysis(event):
         for revent in recent_events:
             if (last_anomaly_time - revent.created < EVENT_DUPLICATE_TIME) and is_possible_fire(revent):
                 # not orignal event
+                print("Not original event")
                 break
             if last_anomaly_time - revent.created > EVENT_DUPLICATE_TIME:
-                # stop looking as we've reached the end of the 
+                # stop looking as we've reached the end of the
                 # possible anomaly cluster without finding other significant events
                 is_original = True
                 break
@@ -67,8 +78,8 @@ def smoke_analysis(event):
 
 @celery_engine.task()
 def check_alert_status(event):
-    #TODO: take alerts as args instead of event?
-    alerts = Alert.objects.filter(source_event__id=event.id)
+    # TODO: take alerts as args instead of event?
+    alerts = Alert.objects.filter(source_event__pk=event.pk)
     is_rejected, is_confirmed = False, False
     for alert in alerts:
         if alert.response == 'confirmed':
@@ -111,7 +122,12 @@ def fire_analysis(event):
         alert.send("Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.")
 
     # if no one confirms or rejects fire event after some time, escalate and send emergency crew
-    check_alert_status.apply_async((event,), countdown=EVENT_CHECK_DELAY)
+    if USING_CELERY:
+        check_alert_status.apply_async((event,), countdown=EVENT_CHECK_DELAY)
+    else:
+        import threading
+        t = threading.Timer(EVENT_CHECK_DELAY, check_alert_status, args=[event])
+        t.start()
 
 def analyze(event):
     """
@@ -120,9 +136,9 @@ def analyze(event):
     #TODO: move to new celery task of its own
     #TODO: check for duplicates
     if EMERGENCY_EVENT in event.event_type:
-        alert_analysis.delay(event)
+        alert_analysis.delay(event) if USING_CELERY else alert_analysis(event)
     elif 'smoke' in event.event_type:
-        smoke_analysis.delay(event)
+        smoke_analysis.delay(event) if USING_CELERY else smoke_analysis(event)
     elif 'fire' in event.event_type:
-        fire_analysis.delay(event)
+        fire_analysis.delay(event) if USING_CELERY else fire_analysis(event)
 

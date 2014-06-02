@@ -34,8 +34,9 @@ class DimeDriver:
 
         try:
             data = json.loads(str(msg.payload))
-        except:
+        except ValueError as e:
             print("ERROR parsing JSON payload: %s" % msg.payload)
+            print(e)
             return
 
         try:
@@ -56,6 +57,7 @@ class DimeDriver:
         print("disconnected, rc: " + str(rc))
         DimeDriver._client_instance = None
         mosq.loop_stop()
+        DimeDriver._client_looping = False
 
     @staticmethod
     def _on_connect(mosq, obj, rc):
