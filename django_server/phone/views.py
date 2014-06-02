@@ -11,7 +11,7 @@ import os
 #TODO: clean up this rather ugly code and move the alerting logic outside the views
 
 DEFAULT_RESPONSE_MESSAGE = "Thank you for contacting the Safe Community Alerting Network.  Everything seems fine."
-NOT_REGISTERED_MESSAGE = "You are not currently registered with our database."
+NOT_REGISTERED_MESSAGE = "You are not currently registered with our database. Text REGISTER to this number to register."
 REGISTERED_MESSAGE = "You are now registered in our database and will receive alerts if we detect a potential emergency in your home."
 UNREGISTERED_MESSAGE = "Your contact information has been removed from the database.  Thank you for participating in this demo!"
 ALREADY_REGISTERED_MESSAGE = "You are already registered in the database!"
@@ -37,22 +37,14 @@ def sms_handler(request):
     # if not None by the end of this handler, will respond with the given message
     response_message = None
 
-    # handle (un)subscribing first
-    if 'demo' in msg:
-        event = SensedEvent(event_type='smoke', device_id='demo',
-                            data={'d' : 
-                                  {'event' : 'smoke',
-                                   'value' : '0x0123'}
-                                 })
-        scale.DimeDriver.publish_event(event)
-    elif 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
-        try:
-            contact = Contact.objects.get(phone_number=contact_number)
-            contact.delete()
-            response_message = UNREGISTERED_MESSAGE
-        except ObjectDoesNotExist:
-            response_message = NOT_REGISTERED_MESSAGE
-    elif 'subscribe' in msg or 'register' in msg:
+    # first, see if this user is even in the database
+    contact = None
+    try:
+        contact = Contact.objects.get(phone_number=contact_number)
+    except ObjectDoesNotExist:
+        response_message = NOT_REGISTERED_MESSAGE
+
+    if 'subscribe' in msg or 'register' in msg:
         # extract contact's name from message
         contact_info = msg.replace('subscribe', '').replace('register','')
         try:
@@ -69,6 +61,25 @@ def sms_handler(request):
             response_message = REGISTERED_MESSAGE
         except IntegrityError:
             response_message = ALREADY_REGISTERED_MESSAGE
+    # skip all the rest of these cases if the user isn't registered and didn't
+    # request to be
+    elif not contact:
+        pass
+    # handle (un)subscribing first
+    elif 'demo' in msg:
+        event = SensedEvent(event_type='smoke', device_id='demo',
+                            data={'d' :
+                                  {'event' : 'smoke',
+                                   'value' : '0x0123'}
+                                 })
+        scale.DimeDriver.publish_event(event)
+    elif 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
+        try:
+            contact = Contact.objects.get(phone_number=contact_number)
+            contact.delete()
+            response_message = UNREGISTERED_MESSAGE
+        except ObjectDoesNotExist:
+            response_message = NOT_REGISTERED_MESSAGE
 
     else:
         try:
