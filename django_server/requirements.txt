@@ -13,6 +13,7 @@ django-twilio==0.5.1
 httplib2==0.9
 kombu==3.0.16
 mosquitto==1.2.3
+numpy==1.8.1
 phonenumbers==6.1.0
 psycopg2==2.5.3
 python-dateutil==2.2

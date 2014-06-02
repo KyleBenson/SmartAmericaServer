@@ -4,6 +4,7 @@ from phone.messages import ALERT_CONFIRMED_MESSAGE
 from .celery import celery_engine
 import scale
 from datetime import datetime, timedelta
+import numpy
 
 # TODO: put these in some config file
 # time to wait before checking if an event was confirmed before escalating
@@ -21,6 +22,13 @@ def deactivate_events():
                                modified__lte=cutoff_time).update(active=False)
 
 
+def get_recent_events(event):
+    return SensedEvent.objects.filter(
+        device=event.device,
+        event_type=event.event_type,
+        active=True).exclude(pk=event.pk).order_by('-created')
+
+
 def is_possible_fire(event):
     """
     check the voltage reading to determine if the alarm is going off
@@ -29,12 +37,23 @@ def is_possible_fire(event):
     # TODO: low battery warnings!
     FIRE_ALARM_VOLTAGE_THRESHOLD = 0x0200
     voltage_level = int(data, 0) # 0 says guess base of int
-    return voltage_level < FIRE_ALARM_VOLTAGE_THRESHOLD
+
+    # just use thresholding for demo device until we make some way of adding
+    # fake data to make the stdev check work properly
+    if event.device.device_id == 'demo':
+        return voltage_level < FIRE_ALARM_VOLTAGE_THRESHOLD
+
+    else:
+        # if voltage is > 10 standard deviations from the norm, we assume the alarm
+        # is going off
+        recent_events = get_recent_events(event)[:10]
+        data = numpy.array([int(ev.data['d']['value'], 0) for ev in recent_events])
+        stdevs = abs(data.mean() - voltage_level) / data.std()
+        return stdevs > 10
 
 
 @celery_engine.task()
 def smoke_analysis(event):
-    print event
 
     if is_possible_fire(event):
         # Possible emergency, but check if this is a duplicate first, which is
@@ -47,10 +66,7 @@ def smoke_analysis(event):
         # TODO: should we only look at events within EVENT_DUPLICATE_TIME of now?
         # Perhaps such a long-lived event should send another Alert if it's still active?
 
-        recent_events = SensedEvent.objects.filter(
-            device=event.device,
-            event_type=event.event_type,
-            active=True).exclude(pk=event.pk).order_by('-created')
+        recent_events = get_recent_events(event)
 
         # if we make it through without breaking, we found a huge cluster of one event
         # if the queryset was empty, this is clearly an original event!
@@ -119,6 +135,7 @@ def fire_analysis(event):
     for contact in event.device.contact.all():
         alert = Alert.objects.create(source_event=event, contact=contact)
         #TODO: perhaps publish alert events and then contact via phone in response to that event?
+        print("sending alert to %s" % contact.phone_number)
         alert.send("Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.")
 
     # if no one confirms or rejects fire event after some time, escalate and send emergency crew
