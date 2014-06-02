@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from dime_driver import DimeDriver
 import os, json, ctypes
+from django.http import Http404
 
 def sigfox(request):
     device_id = request.GET.get("id")
@@ -14,21 +15,14 @@ def sigfox(request):
     if len(data) < 7:
         sensor_type = 'smoke'
         # need to get in hex form first...
+        # TODO: make smoke sensing system work with decimal values
         if not data.startswith('0x'):
-            data = '0x' + data
+            data = '0x' + str(data)
 
-        #TODO: functionalize this
-        data = {'d':
-                {'event' : 'smoke',
-                 'value' : str(data),
-                 'prio_value' : '10',
-                 'timestamp' : timestamp,
-                 'device' : {'id' : device_id,
-                             'type' : 'sigfox',
-                             'version' : '0.1'},
-                 'misc' : {'signal' : signal}
-                }
-               }
+        event_type_original = 'smoke'
+        value_original = data
+        priority_original = 10
+
     else:
         #Divided Sigfox Message data into Segments
         event_type_encoded = data[0:2]
@@ -47,7 +41,8 @@ def sigfox(request):
             event_type_original = type_info[event_type_encoded]
         except KeyError:
             print "Unknown Event Code: " + event_type_encoded
-            return False
+            # TODO: return 404 error
+            raise Http404
 
         # 2. Decode Value Descriptor
 
@@ -59,22 +54,22 @@ def sigfox(request):
         priority_original = str(int(priority_encoded, 16))
 
         # 5. Decode Control Bits
+        #TODO:
 
-        # Generate JSON data
-	data = {'d' :
-               {'event' : event_type_original,
-                'value' : value_original,
-                'prio_value' : priority_original,
-                'timestamp' : timestamp,
-                'device' : {'id' : device_id,
-                               'type' : 'sigfox',
-                               'version' : '0.1'},
-                'misc' : {'signal' : signal}
-		}
-		}
+    # Generate JSON data
+    #TODO: functionalize this
+    data = {'d' :
+            {'event' : event_type_original,
+             'value' : value_original,
+             'prio_value' : priority_original,
+             'timestamp' : timestamp,
+             'device' : {'id' : device_id,
+                         'type' : 'sigfox',
+                         'version' : '0.1'},
+             'misc' : {'signal' : signal}
+             }
+            }
 
-
-
-    DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, sensor_type), json.dumps(data))
+    DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, event_type_original), json.dumps(data))
 
     return HttpResponse(response, content_type="text/plain")
