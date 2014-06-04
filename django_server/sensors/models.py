@@ -15,7 +15,7 @@ class Device(models.Model):
     it lives on.
     """
     device_id = models.CharField(max_length=100, primary_key=True)
-    contact = models.ManyToManyField(Contact)
+    contact = models.ManyToManyField(Contact, null=True)
 
 class SensedEvent(TimeStampedModel):
     """
@@ -39,7 +39,7 @@ class Alert(TimeStampedModel):
     """
     source_event = models.ForeignKey(SensedEvent)
     contact = models.ForeignKey(Contact)
-    response = models.CharField(max_length=20, default="unconfirmed") # unconfirmed, confirmed, rejected   
+    response = models.CharField(max_length=20, default="unconfirmed") # unconfirmed, confirmed, rejected
     #TODO: how to handle multiple outstanding alerts?  multiple phone #'s?
 
     def send(self, msg):

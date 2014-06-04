@@ -1,4 +1,5 @@
-import mosquitto, thread, time, json
+import paho.mqtt.client as mqtt
+import time, json
 from django.core.exceptions import ObjectDoesNotExist
 import sensors.models
 # switch these lines to change brokers
@@ -49,15 +50,22 @@ class DimeDriver:
                                            event_type=event_type,
                                            data=data,
                                            source_event=source_event)
-        event.save()
+        #TODO: remove this when we keep DB clean
+        if 'demo' in msg.topic:
+            event.save()
         analytics.tasks.analyze(event)
 
     @staticmethod
     def _on_disconnect(mosq, obj, rc):
         print("disconnected, rc: " + str(rc))
-        DimeDriver._client_instance = None
-        mosq.loop_stop()
-        DimeDriver._client_looping = False
+
+        # theoretically, Paho will handle reconnecting...
+        #DimeDriver._client_instance = None
+        #mosq.loop_stop()
+        #DimeDriver._client_looping = False
+        ## reconnect and subscribe again
+        #rc = DimeDriver.subscribe()
+        #print("reconnecting: " + str(rc))
 
     @staticmethod
     def _on_connect(mosq, obj, rc):
@@ -116,11 +124,13 @@ class DimeDriver:
         if not DimeDriver._client_looping:
             DimeDriver._client_looping = True
             client.loop_start()
+        return ret
 
     @staticmethod
     def _get_client():
         if DimeDriver._client_instance is None:
-            DimeDriver._client_instance = mosquitto.Mosquitto()
+            #DimeDriver._client_instance = mosquitto.Mosquitto()
+            DimeDriver._client_instance = mqtt.Client()
             DimeDriver._client_instance.on_message = DimeDriver._on_message
             DimeDriver._client_instance.on_connect = DimeDriver._on_connect
             DimeDriver._client_instance.on_disconnect = DimeDriver._on_disconnect
