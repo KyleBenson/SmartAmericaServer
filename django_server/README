@@ -25,3 +25,4 @@ For running running locally, add the following:
 TWILIO_ACCOUNT_SID
 TWILIO_AUTH_TOKEN
 PHONE_NUMBER <-- your personal phone number to default to for sending messages
+EMERGENCY_CONTACT_NUMBER  <-- when someone calls the scale number, they will be redirected to this number.  Useful for questions about project or to report problems, while keeping this number anonymous

@@ -2,13 +2,17 @@ from django.conf.urls import patterns, include, url
 from django.shortcuts import redirect
 from django.contrib import admin
 admin.autodiscover()
+import os
+
+EMERGENCY_CONTACT_NUMBER = os.environ.get('EMERGENCY_CONTACT_NUMBER')
 
 urlpatterns = patterns('',
     url(r'^$', lambda x: redirect('http://smartamerica.org/teams/scale-safe-community-alert-network-a-k-a-public-safety-for-smart-communities/')),
     #url(r'^env$', 'scale.views.print_environment'),
     url(r'^demo$', 'scale.views.run_demo'),
-    url(r'^phone_call$', 'django_twilio.views.say', {
-        'text' : 'Hello, world!  This is Twilio.'
+    url(r'^phone$', 'django_twilio.views.dial', {
+        'method': 'GET',
+        'number': EMERGENCY_CONTACT_NUMBER
         }),
     url(r'^sms$', 'phone.views.sms_handler'),
     url(r'^test_rest$', 'scale.test.test_rest'),

@@ -150,6 +150,9 @@ class DimeDriver:
 if __name__ == '__main__':
     #DimeDriver.subscribe('iot-1/d/kyle2/#')
     #DimeDriver.subscribe('iot-1/d/7831c1d1c734/#')
+    import sys
+    print 'args:', sys.argv
+
     for i in range(10):
         DimeDriver.publish('iot-1/d/kyle2/evt/smoke/json', 'blahblahpayload %i' % i)
 
