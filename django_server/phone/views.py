@@ -29,6 +29,34 @@ def unregister(contact_number):
         return NOT_REGISTERED_MESSAGE
 
 
+def contact_preference_options_handler(request):
+    """Handles gathered key from user calling to update contact method preference."""
+
+    key_entered = request.GET['Digits']
+    response = twiml.Response()
+
+    try:
+        contact = Contact.objects.get(phone_number = request.GET['From'])
+    except ObjectDoesNotExist:
+        response.say(NOT_REGISTERED_MESSAGE)
+        return HttpResponse(response)
+
+    response_message = "Your preferences have been updated"
+
+    if key_entered == '1':
+        contact.contact_preference = 'sms'
+    elif key_entered == '2':
+        contact.contact_preference = 'phone'
+    else:
+        response_message = "You've pressed an incorrect key"
+
+    contact.save()
+
+    response.say(response_message)
+
+    return HttpResponse(response)
+
+
 def main_menu_options_handler(request):
     key_entered = request.GET['Digits']
     response = twiml.Response()
@@ -37,6 +65,15 @@ def main_menu_options_handler(request):
         response.dial(os.environ.get('EMERGENCY_CONTACT_NUMBER'))
     elif key_entered == '2':
         response.say(unregister(request.GET['From']))
+    elif key_entered == '3':
+        response.say("Press 1 to receive SMS text messages. Press 2 to receive phone calls.")
+        response.gather(action='/phone/contact_preference_options',
+                        method='GET',
+                        numDigits=1,
+                        timeout=15,
+                        )
+    else:
+        response_message = "You've pressed an incorrect key"
 
     return HttpResponse(response)
 
@@ -47,7 +84,8 @@ def phone_call_handler(request):
     response = twiml.Response()
 
     MENU_OPTIONS = "Press 1 to speak with the SCALE coordinator about any questions or issues with SCALE devices. \
-        Press 2 to unregister this number from the SCALE database."
+        Press 2 to unregister this number from the SCALE database. \
+        Press 3 to set your contact method preferences."
     response.say(DEFAULT_GREETING + MENU_OPTIONS)
     response.gather(action='/phone/main_menu_options',
                     method='GET',

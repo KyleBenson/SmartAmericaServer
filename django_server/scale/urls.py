@@ -13,8 +13,9 @@ urlpatterns = patterns('',
 
     # phone / alerting stuff
     url(r'^phone$', 'phone.views.phone_call_handler'),
-    url(r'^phone/main_menu_options$', 'phone.views.main_menu_options_handler'),
     url(r'^sms$', 'phone.views.sms_handler'),
+    url(r'^phone/main_menu_options$', 'phone.views.main_menu_options_handler'),
+    url(r'^phone/contact_preference_options$', 'phone.views.contact_preference_options_handler'),
 
     url(r'^test_rest$', 'scale.test.test_rest'),
     url(r'^sigfox$', 'scale.external_sources.sigfox'),
