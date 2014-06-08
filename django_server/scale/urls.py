@@ -10,11 +10,12 @@ urlpatterns = patterns('',
     url(r'^$', lambda x: redirect('http://smartamerica.org/teams/scale-safe-community-alert-network-a-k-a-public-safety-for-smart-communities/')),
     #url(r'^env$', 'scale.views.print_environment'),
     url(r'^demo$', 'scale.views.run_demo'),
-    url(r'^phone$', 'django_twilio.views.dial', {
-        'method': 'GET',
-        'number': EMERGENCY_CONTACT_NUMBER
-        }),
+
+    # phone / alerting stuff
+    url(r'^phone$', 'phone.views.phone_call_handler'),
+    url(r'^phone/main_menu_options$', 'phone.views.main_menu_options_handler'),
     url(r'^sms$', 'phone.views.sms_handler'),
+
     url(r'^test_rest$', 'scale.test.test_rest'),
     url(r'^sigfox$', 'scale.external_sources.sigfox'),
 

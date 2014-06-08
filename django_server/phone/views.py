@@ -10,11 +10,53 @@ import os
 
 #TODO: clean up this rather ugly code and move the alerting logic outside the views
 
-DEFAULT_RESPONSE_MESSAGE = "Thank you for contacting the Safe Community Alerting Network.  Everything seems fine."
+DEFAULT_GREETING = "Thank you for contacting the Safe Community Alerting Network."
+DEFAULT_RESPONSE_MESSAGE = DEFAULT_GREETING + "  Everything seems fine."
 NOT_REGISTERED_MESSAGE = "You are not currently registered with our database. Text REGISTER to this number to register."
 REGISTERED_MESSAGE = "You are now registered in our database and will receive alerts if we detect a potential emergency in your home."
 UNREGISTERED_MESSAGE = "Your contact information has been removed from the database.  Thank you for participating in this demo!"
 ALREADY_REGISTERED_MESSAGE = "You are already registered in the database!"
+
+
+def unregister(contact_number):
+    """Unregister the contact with the given number by removing the entry from database"""
+
+    try:
+        contact = Contact.objects.get(phone_number=contact_number)
+        contact.delete()
+        return UNREGISTERED_MESSAGE
+    except ObjectDoesNotExist:
+        return NOT_REGISTERED_MESSAGE
+
+
+def main_menu_options_handler(request):
+    key_entered = request.GET['Digits']
+    response = twiml.Response()
+
+    if key_entered == '1':
+        response.dial(os.environ.get('EMERGENCY_CONTACT_NUMBER'))
+    elif key_entered == '2':
+        response.say(unregister(request.GET['From']))
+
+    return HttpResponse(response)
+
+
+def phone_call_handler(request):
+    """Gives user menu choices for how to direct the call."""
+
+    response = twiml.Response()
+
+    MENU_OPTIONS = "Press 1 to speak with the SCALE coordinator about any questions or issues with SCALE devices. \
+        Press 2 to unregister this number from the SCALE database."
+    response.say(DEFAULT_GREETING + MENU_OPTIONS)
+    response.gather(action='/phone/main_menu_options',
+                    method='GET',
+                    numDigits=1,
+                    timeout=15,
+                    )
+
+    return HttpResponse(response)
+
 
 def sms_handler(request):
     """Dispatches various other handlers based on some state associated with the
@@ -74,12 +116,7 @@ def sms_handler(request):
                                  })
         scale.DimeDriver.publish_event(event)
     elif 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
-        try:
-            contact = Contact.objects.get(phone_number=contact_number)
-            contact.delete()
-            response_message = UNREGISTERED_MESSAGE
-        except ObjectDoesNotExist:
-            response_message = NOT_REGISTERED_MESSAGE
+        response_message = unregister(contact_number)
 
     else:
         try:
