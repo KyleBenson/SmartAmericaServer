@@ -1,9 +1,11 @@
 import os
+from django.conf import settings
 from django.db import models
 from phone.models import Contact
 from model_utils.models import TimeStampedModel
 from json_field import JSONField
 from django_twilio.client import twilio_client
+from urllib import urlencode
 
 #TODO: alert is overloaded, change to emergency?
 EMERGENCY_EVENT = 'alert'
@@ -33,19 +35,34 @@ class SensedEvent(TimeStampedModel):
     data = JSONField()
     active = models.BooleanField(default=True)
 
+
+
 class Alert(TimeStampedModel):
+
     """
     We send an alert message to possible victims due to a SensedEvent being escalated by the analytics engine.
     """
+
     source_event = models.ForeignKey(SensedEvent)
     contact = models.ForeignKey(Contact)
     response = models.CharField(max_length=20, default="unconfirmed") # unconfirmed, confirmed, rejected
     #TODO: how to handle multiple outstanding alerts?  multiple phone #'s?
 
     def send(self, msg):
+
         """
-        Sends an alert message via Twilio for confirmation
+        Sends an alert message, using SMS or a phone call as per the Contact's
+        preferenes, via Twilio for confirmation.
         """
-        twilio_client.messages.create(to=self.contact.phone_number,
-                                      body=msg,
-                                      _from=os.environ.get("TWILIO_PHONE_NUMBER"))
+
+        if self.contact.contact_preference == 'sms':
+            twilio_client.messages.create(to=self.contact.phone_number,
+                                          body=msg + "  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.",
+                                          _from=os.environ.get("TWILIO_PHONE_NUMBER"))
+
+        elif self.contact.contact_preference == 'phone':
+            twilio_client.calls.create(to=self.contact.phone_number,
+                                       from_=os.environ.get("TWILIO_PHONE_NUMBER"),
+                                       url=settings.URL_ROOT + '/phone/alert?' + urlencode({'msg': msg}),
+                                       method='GET',
+                                       )

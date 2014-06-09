@@ -83,7 +83,7 @@ def phone_call_handler(request):
 
     response = twiml.Response()
 
-    MENU_OPTIONS = "Press 1 to speak with the SCALE coordinator about any questions or issues with SCALE devices. \
+    MENU_OPTIONS = "  Press 1 to speak with the SCALE coordinator about any questions or issues with SCALE devices. \
         Press 2 to unregister this number from the SCALE database. \
         Press 3 to set your contact method preferences."
     response.say(DEFAULT_GREETING + MENU_OPTIONS)
@@ -95,6 +95,77 @@ def phone_call_handler(request):
 
     return HttpResponse(response)
 
+
+def confirm_alert(alert):
+    alert.response = 'confirmed'
+    alert.save()
+
+    response_message = None
+
+    # If we've already created an EmergencyEvent associated with this alert,
+    # perhaps from family member confirming the emergency already,
+    # don't publish one again.
+    if not SensedEvent.objects.filter(event_type=EMERGENCY_EVENT,
+                                      source_event=alert.source_event).exists():
+        scale.DimeDriver.publish_alert(alert)
+    else:
+        response_message = "We've already received your response; " + ALERT_CONFIRMED_MESSAGE
+
+    return response_message
+
+
+def reject_alert(alert):
+    alert.response = 'rejected'
+    alert.save()
+    response_message = ALERT_REJECTED_MESSAGE
+
+    scale.DimeDriver.publish_alert(alert)
+    #TODO: eventually send WE'RE OKAY notifications?: scale.DimeDriver.publish_alert(alert)
+    return response_message
+
+def phone_alert_handler(request):
+    """Alerts user to an event and prompts them to confirm it."""
+
+    response = twiml.Response()
+
+    GREETING_MESSAGE = request.GET['msg']
+    MENU_OPTIONS = "  Press 1 to confirm this emergency and immediately dispatch emergency personnel. \
+        Press 2 if you are okay and do not need further assistance."
+        #TODO: Press 3 to initiate a conference call with all registered members of your household.
+    response.say(GREETING_MESSAGE + ' ' + MENU_OPTIONS)
+    response.gather(action='/phone/alert_menu_options',
+                    method='GET',
+                    numDigits=1,
+                    timeout=15,
+                    )
+
+    return HttpResponse(response)
+
+
+def phone_alert_menu_options_handler(request):
+
+    key_entered = request.GET['Digits']
+    response = twiml.Response()
+    contact_number = request.GET['To']
+    alert = get_alert_by_contact_number(contact_number)
+
+    if key_entered == '1':
+        confirm_alert(alert)
+        response.say(ALERT_CONFIRMED_MESSAGE)
+    elif key_entered == '2':
+        reject_alert(alert)
+        response.say(ALERT_REJECTED_MESSAGE)
+    else:
+        response_message = "You've pressed an incorrect key"
+
+    return HttpResponse(response)
+
+
+def get_alert_by_contact_number(contact_number):
+    #TODO: rather than assume an Alert is over when source event is inactive, perhaps we should have an explicit active field on the Alert itself?
+    alert = Alert.objects.filter(contact__phone_number=contact_number,
+                                 source_event__active=True).order_by('-created')[0]
+    return alert
 
 def sms_handler(request):
     """Dispatches various other handlers based on some state associated with the
@@ -159,27 +230,13 @@ def sms_handler(request):
     else:
         try:
             # try correlating contact number with an outstanding event
-            #TODO: rather than assume an Alert is over when source event is inactive, perhaps we should have an explicit active field on the Alert itself?
-            alert = Alert.objects.filter(contact__phone_number=contact_number,
-                                         source_event__active=True).order_by('-created')[0]
+            alert = get_alert_by_contact_number(contact_number)
+
             #TODO: handle responses after EmergencyEvent has been generated? cancelling, late confirmation, etc.
             if 'emergency' in msg:
-                alert.response = 'confirmed' #TODO: functionalize
-                alert.save()
-
-                # If we've already created an EmergencyEvent associated with this alert,
-                # perhaps from family member confirming the emergency already,
-                # don't publish one again.
-                if not SensedEvent.objects.filter(event_type=EMERGENCY_EVENT,
-                                                  source_event=alert.source_event).exists():
-                    scale.DimeDriver.publish_alert(alert)
-                else:
-                    response_message = "We've already received your response; " + ALERT_CONFIRMED_MESSAGE
+                response_message = confirm_alert(alert)
             elif 'okay' in msg:
-                alert.response = 'rejected' #TODO: same
-                alert.save()
-                response_message = ALERT_REJECTED_MESSAGE
-                #TODO: eventually send WE'RE OKAY notifications?: scale.DimeDriver.publish_alert(alert)
+                response_message = reject_alert(alert)
             else:
                 # not an alert-related message, throw to default
                 raise IndexError

@@ -8,7 +8,7 @@ import numpy
 
 # TODO: put these in some config file
 # time to wait before checking if an event was confirmed before escalating
-EVENT_CHECK_DELAY = 15
+EVENT_CHECK_DELAY = 30
 EVENT_ACTIVE_TIME = timedelta(seconds=30)
 EVENT_DUPLICATE_TIME = timedelta(seconds=5)
 
@@ -114,12 +114,14 @@ def alert_analysis(event):
     Sends messages to all Contacts associated with this alert event.
     """
     #TODO: handle ESCALATED
+    #TODO: functionalize these / make a new event type for "alert"?
     if event.data['d']['response'] == 'confirmed':
         msg = ALERT_CONFIRMED_MESSAGE
     elif event.data['d']['response'] == 'unconfirmed':
+        #TODO: what's going on here?
         msg = ALERT_CONFIRMED_MESSAGE
-    # not in use currently...
-    #elif event.data['d']['response'] == 'rejected':
+    elif event.data['d']['response'] == 'rejected':
+        return
         #msg = ALERT_REJECTED_MESSAGE
 
     # find all other alerts that stemmed from the source of this alert and notify contacts
@@ -136,7 +138,7 @@ def fire_analysis(event):
         alert = Alert.objects.create(source_event=event, contact=contact)
         #TODO: perhaps publish alert events and then contact via phone in response to that event?
         print("sending alert to %s" % contact.phone_number)
-        alert.send("Possible fire detected in your home!  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.")
+        alert.send("Possible fire detected in your home!")
 
     # if no one confirms or rejects fire event after some time, escalate and send emergency crew
     if USING_CELERY:

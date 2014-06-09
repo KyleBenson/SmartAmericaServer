@@ -1,5 +1,6 @@
 import os, yaml
 
+URL_ROOT = "http://smartamerica.ngrok.com"
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
