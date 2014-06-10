@@ -87,7 +87,7 @@ def smoke_analysis(event):
                 # move the boundary of the cluster
                 last_anomaly_time = revent.created
 
-        if is_original:
+        if is_original or event.device.device_id == 'demo':
             # this is the first event in recent history, publish the possible emergency
             event.event_type = 'fire'
             scale.DimeDriver.publish_event(event)
@@ -107,6 +107,10 @@ def check_alert_status(event):
     # escalate event if no one responded, already been escalated if it's confirmed
     if not is_confirmed and not is_rejected:
         #TODO: set details related to dispatch
+        #TODO: this should be done to an EmergencyEvent, not an individual Alert
+        alert = alerts[0]
+        alert.response = 'nonresponsive'
+        alert.save()
         scale.DimeDriver.publish_alert(alerts[0])
 
 
@@ -119,10 +123,12 @@ def alert_analysis(event):
     try:
         if event.data['d']['response'] == 'confirmed':
             msg = ALERT_CONFIRMED_MESSAGE
-        elif event.data['d']['response'] == 'unconfirmed':
+        elif event.data['d']['response'] == 'nonresponsive':
             # notify them that the alert has been escalated
             msg = ALERT_CONFIRMED_MESSAGE
         elif event.data['d']['response'] == 'rejected':
+            return
+        else:
             return
             #msg = ALERT_REJECTED_MESSAGE
     except KeyError as e:
@@ -145,6 +151,7 @@ def fire_analysis(event):
         #TODO: perhaps publish alert events and then contact via phone in response to that event?
         print("sending alert to %s" % contact.phone_number)
         alert.send("Possible fire detected in your home!")
+        scale.DimeDriver.publish_alert(alert)
 
     # if no one confirms or rejects fire event after some time, escalate and send emergency crew
     if USING_CELERY:
@@ -163,8 +170,6 @@ def explosive_gas_analysis(event):
     prompting for confirmation / rejection of the emergency.
     """
     recent_events = get_recent_events(event)
-
-    print "data:", event.data
 
     # if we make it through without breaking, we found a huge cluster of one event
     # if the queryset was empty, this is clearly an original event!
@@ -196,6 +201,7 @@ def explosive_gas_analysis(event):
             #TODO: perhaps publish alert events and then contact via phone in response to that event?
             print("sending alert to %s" % contact.phone_number)
             alert.send("Possible gas leak detected in your home!")
+            scale.DimeDriver.publish_alert(alert)
 
         if alerts_sent:
             # if no one confirms or rejects gas event after some time, escalate and send emergency crew

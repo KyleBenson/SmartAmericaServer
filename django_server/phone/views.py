@@ -102,14 +102,17 @@ def confirm_alert(alert):
 
     response_message = None
 
-    # If we've already created an EmergencyEvent associated with this alert,
+    # TODO: handle this case below
+    # If we've already confirmed the EmergencyEvent associated with this alert,
     # perhaps from family member confirming the emergency already,
     # don't publish one again.
-    if not SensedEvent.objects.filter(event_type=EMERGENCY_EVENT,
-                                      source_event=alert.source_event).exists():
-        scale.DimeDriver.publish_alert(alert)
-    else:
-        response_message = "We've already received your response; " + ALERT_CONFIRMED_MESSAGE
+    #prev_alerts = SensedEvent.objects.filter(event_type=EMERGENCY_EVENT,
+                                             #source_event=alert.source_event)
+    #if not prev_alerts.exists() or not sum([1 if pe.status == 'confirmed' else 0 for pe in prev_alerts]):
+
+    scale.DimeDriver.publish_alert(alert)
+    #else:
+        #response_message = "We've already received your response; " + ALERT_CONFIRMED_MESSAGE
 
     return response_message
 
