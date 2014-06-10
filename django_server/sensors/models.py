@@ -1,5 +1,4 @@
 import os
-from django.conf import settings
 from django.db import models
 from phone.models import Contact
 from model_utils.models import TimeStampedModel
@@ -18,6 +17,7 @@ class Device(models.Model):
     """
     device_id = models.CharField(max_length=100, primary_key=True)
     contact = models.ManyToManyField(Contact, null=True)
+
 
 class SensedEvent(TimeStampedModel):
     """
@@ -56,13 +56,26 @@ class Alert(TimeStampedModel):
         """
 
         if self.contact.contact_preference == 'sms':
+            # prompt for response if this alert is unconfirmed
+            if self.response == 'unconfirmed':
+                msg = msg + "  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.",
+
             twilio_client.messages.create(to=self.contact.phone_number,
-                                          body=msg + "  Respond with EMERGENCY for immediate assistance or OKAY to cancel this alert.",
+                                          body=msg,
                                           _from=os.environ.get("TWILIO_PHONE_NUMBER"))
 
         elif self.contact.contact_preference == 'phone':
+            # they've already been notified of a confirmation on the phone
+            # because that's how they confirmed it! same with rejection
+            if self.response == 'confirmed' or self.response == 'rejected':
+                return
+
+            # phone starts talking too quickly, so add an additional greeting
+            # to make the main message clearer
+            msg = "This is an automated message from the Safe Community Alerting Network. " + msg
+
             twilio_client.calls.create(to=self.contact.phone_number,
                                        from_=os.environ.get("TWILIO_PHONE_NUMBER"),
-                                       url=settings.URL_ROOT + '/phone/alert?' + urlencode({'msg': msg}),
+                                       url=os.environ.get('URL_ROOT') + '/phone/alert?' + urlencode({'msg': msg}),
                                        method='GET',
                                        )

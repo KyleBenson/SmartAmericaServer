@@ -120,7 +120,6 @@ def reject_alert(alert):
     response_message = ALERT_REJECTED_MESSAGE
 
     scale.DimeDriver.publish_alert(alert)
-    #TODO: eventually send WE'RE OKAY notifications?: scale.DimeDriver.publish_alert(alert)
     return response_message
 
 def phone_alert_handler(request):

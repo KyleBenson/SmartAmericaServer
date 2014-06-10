@@ -3,6 +3,7 @@ import pprint
 import os, yaml
 from dime_driver import DimeDriver
 from sensors.models import SensedEvent
+import time
 
 def print_environment(request):
     response = "Your environment contains:\n"
@@ -25,6 +26,7 @@ def run_demo(request):
         data = {'d' :
                 {'value' : '0x0123',
                  'event' : event_type,
+                 'timestamp': time.time(),
                 }
                }
 

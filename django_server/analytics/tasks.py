@@ -8,9 +8,9 @@ import numpy
 
 # TODO: put these in some config file
 # time to wait before checking if an event was confirmed before escalating
-EVENT_CHECK_DELAY = 30
+EVENT_CHECK_DELAY = 60
 EVENT_ACTIVE_TIME = timedelta(seconds=30)
-EVENT_DUPLICATE_TIME = timedelta(seconds=5)
+EVENT_DUPLICATE_TIME = timedelta(seconds=30)
 
 # Celery wasn't running on BlueMix so we can deactivate it there
 USING_CELERY = False
@@ -92,6 +92,7 @@ def smoke_analysis(event):
             event.event_type = 'fire'
             scale.DimeDriver.publish_event(event)
 
+
 @celery_engine.task()
 def check_alert_status(event):
     # TODO: take alerts as args instead of event?
@@ -108,26 +109,31 @@ def check_alert_status(event):
         #TODO: set details related to dispatch
         scale.DimeDriver.publish_alert(alerts[0])
 
+
 @celery_engine.task()
 def alert_analysis(event):
     """
     Sends messages to all Contacts associated with this alert event.
     """
-    #TODO: handle ESCALATED
     #TODO: functionalize these / make a new event type for "alert"?
-    if event.data['d']['response'] == 'confirmed':
-        msg = ALERT_CONFIRMED_MESSAGE
-    elif event.data['d']['response'] == 'unconfirmed':
-        #TODO: what's going on here?
-        msg = ALERT_CONFIRMED_MESSAGE
-    elif event.data['d']['response'] == 'rejected':
+    try:
+        if event.data['d']['response'] == 'confirmed':
+            msg = ALERT_CONFIRMED_MESSAGE
+        elif event.data['d']['response'] == 'unconfirmed':
+            # notify them that the alert has been escalated
+            msg = ALERT_CONFIRMED_MESSAGE
+        elif event.data['d']['response'] == 'rejected':
+            return
+            #msg = ALERT_REJECTED_MESSAGE
+    except KeyError as e:
+        print e
         return
-        #msg = ALERT_REJECTED_MESSAGE
 
     # find all other alerts that stemmed from the source of this alert and notify contacts
     alerts = Alert.objects.filter(source_event__id=event.data['d']['source_event'])
     for alert in alerts:
         alert.send(msg)
+
 
 @celery_engine.task()
 def fire_analysis(event):
@@ -147,6 +153,59 @@ def fire_analysis(event):
         import threading
         t = threading.Timer(EVENT_CHECK_DELAY, check_alert_status, args=[event])
         t.start()
+        #TODO: extract event analysis patterns from these functions
+
+
+@celery_engine.task()
+def explosive_gas_analysis(event):
+    """
+    Check if this is a duplicate event and, if not, immediately send alert,
+    prompting for confirmation / rejection of the emergency.
+    """
+    recent_events = get_recent_events(event)
+
+    print "data:", event.data
+
+    # if we make it through without breaking, we found a huge cluster of one event
+    # if the queryset was empty, this is clearly an original event!
+    is_original = False if recent_events else True
+    last_anomaly_time = event.created
+
+    for revent in recent_events:
+        if (last_anomaly_time - revent.created < EVENT_DUPLICATE_TIME):
+            # not orignal event
+            print("Not original event")
+            break
+        if last_anomaly_time - revent.created > EVENT_DUPLICATE_TIME:
+            # stop looking as we've reached the end of the
+            # possible anomaly cluster without finding other significant events
+            is_original = True
+            break
+        # currently, we only expect high levels of gas to be reported
+        if True:
+            # move the boundary of the cluster
+            last_anomaly_time = revent.created
+
+    if is_original:
+        # this is the first event in recent history, publish the possible emergency
+
+        alerts_sent = False
+        for contact in event.device.contact.all():
+            alerts_sent = True
+            alert = Alert.objects.create(source_event=event, contact=contact)
+            #TODO: perhaps publish alert events and then contact via phone in response to that event?
+            print("sending alert to %s" % contact.phone_number)
+            alert.send("Possible gas leak detected in your home!")
+
+        if alerts_sent:
+            # if no one confirms or rejects gas event after some time, escalate and send emergency crew
+            if USING_CELERY:
+                check_alert_status.apply_async((event,), countdown=EVENT_CHECK_DELAY)
+            else:
+                import threading
+                t = threading.Timer(EVENT_CHECK_DELAY, check_alert_status, args=[event])
+                t.start()
+
 
 def analyze(event):
     """
@@ -160,4 +219,6 @@ def analyze(event):
         smoke_analysis.delay(event) if USING_CELERY else smoke_analysis(event)
     elif 'fire' in event.event_type:
         fire_analysis.delay(event) if USING_CELERY else fire_analysis(event)
+    elif 'explosive_gas' in event.event_type:
+        explosive_gas_analysis.delay(event) if USING_CELERY else explosive_gas_analysis(event)
 

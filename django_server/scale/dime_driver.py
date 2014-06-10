@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
-import time, json
+import time
+import simplejson as json
 from django.core.exceptions import ObjectDoesNotExist
 import sensors.models
 # switch these lines to change brokers
@@ -50,8 +51,9 @@ class DimeDriver:
                                            event_type=event_type,
                                            data=data,
                                            source_event=source_event)
+
         #TODO: remove this when we keep DB clean
-        if 'demo' in msg.topic:
+        if 'demo' in msg.topic or 'explosive_gas' in msg.topic:
             event.save()
         analytics.tasks.analyze(event)
 
