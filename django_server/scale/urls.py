@@ -11,6 +11,7 @@ urlpatterns = patterns('',
     url(r'^fall_app$', lambda x: redirect('/static/SCALEFallDetection.apk')),
     #url(r'^env$', 'scale.views.print_environment'),
     url(r'^demo$', 'scale.views.run_demo'),
+    url(r'^dashboard_demo$', 'scale.views.run_dashboard_demo'),
 
     # phone / alerting stuff
     url(r'^phone$', 'phone.views.phone_call_handler'),

@@ -4,6 +4,7 @@ import os, yaml
 from dime_driver import DimeDriver
 from sensors.models import SensedEvent
 import time
+import subprocess
 
 def print_environment(request):
     response = "Your environment contains:\n"
@@ -33,3 +34,7 @@ def run_demo(request):
     event = SensedEvent(event_type=event_type, device_id='demo', data=data)
     DimeDriver.publish_event(event)
     return HttpResponse('demo for event %s started' % event_type, content_type="text/plain")
+
+def run_dashboard_demo(request):
+    subprocess.call('python scale/dashboard_demo.py', shell=True)
+    return HttpResponse('dashboard demo started. Go to http://smartamerica.biobright.org/alerts to view it', content_type="text/plain")
