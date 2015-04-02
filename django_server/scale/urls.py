@@ -23,6 +23,7 @@ urlpatterns = patterns('',
 
     url(r'^test_rest$', 'scale.test.test_rest'),
     url(r'^sigfox$', 'scale.external_sources.sigfox'),
+    url(r'^senseware$', 'scale.external_sources.senseware'),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),

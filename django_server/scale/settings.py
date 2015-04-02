@@ -34,6 +34,10 @@ CELERYBEAT_SCHEDULE = {
     },
 }
 
+# Twilio account stuff: TODO!!!!
+TWILIO_ACCOUNT_SID = 'blahblah'
+TWILIO_AUTH_TOKEN = 'blahblah'
+
 # extract necessary information from environment to run our services on BlueMix
 env = os.environ
 try:

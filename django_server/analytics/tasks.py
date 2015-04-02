@@ -8,7 +8,7 @@ import numpy
 
 # TODO: put these in some config file
 # time to wait before checking if an event was confirmed before escalating
-EVENT_CHECK_DELAY = 60
+EVENT_CHECK_DELAY = 10
 EVENT_ACTIVE_TIME = timedelta(seconds=30)
 EVENT_DUPLICATE_TIME = timedelta(seconds=30)
 

@@ -2,7 +2,9 @@ from django.http import HttpResponse
 from dime_driver import DimeDriver
 import os, json, ctypes
 from django.http import Http404
+from django.views.decorators.csrf import csrf_exempt
 
+@csrf_exempt
 def sigfox(request):
     device_id = request.GET.get("id")
     timestamp = request.GET.get("time")
@@ -19,7 +21,7 @@ def sigfox(request):
         if not data.startswith('0x'):
             data = '0x' + str(data)
 
-        event_type_original = 'smoke'
+        event_type_original = sensor_type
         value_original = data
         priority_original = 10
 
@@ -73,3 +75,67 @@ def sigfox(request):
     DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, event_type_original), json.dumps(data))
 
     return HttpResponse(response, content_type="text/plain")
+
+@csrf_exempt
+def senseware(request):
+    """
+    Receives data packets from Senseware modules and republishes them via MQTT.
+    They come in as POST objects containing JSON that looks like:
+    { "data" : [
+        { "pkt" : x,
+         "raw": x,
+         "ts": x,
+         "value": x
+         },
+        { "pkt" : y,
+         "raw": y,
+         "ts": y,
+         "value": y,
+         }
+    ],
+        "location" : "x",
+        "mod" : x,
+        "pos" : x,
+        "sid" : x,
+        "site" : "x",
+        "sn" : "x",
+        "type" : "x",
+        "transform" : "x",
+        "ts": x,
+        "unit" : "x",
+        "subscription_id": "x"
+    }
+    """
+
+    dict_data = json.loads(request.body)
+    nreadings = 0
+
+    # Senseware packet may contain multiple readings (several samples per
+    # time period), so run through each of them and publish
+    # a SensedEvent to MQTT for each.
+    for sensed_data in dict_data['data']:
+        # Generate JSON data
+        priority = 5 # TODO: configurable?
+        device_id = dict_data['sid']
+        event_type = dict_data['type']
+        #TODO: functionalize this
+        data = {'d' :
+                {'event' : event_type,
+                 'value' : sensed_data['value'],
+                 'prio_value' : priority,
+                 'timestamp' : sensed_data['ts'],
+                 'device' : {'id' : device_id,
+                             'type' : 'senseware',
+                             'version' : '1.0'},
+                 # TODO: misc
+                 }
+                }
+
+        DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, event_type),
+                           json.dumps(data))
+
+        nreadings += 1
+
+    response = "received %d sensor readings at time %d" % (nreadings, dict_data['ts'])
+    return HttpResponse(response, content_type="text/plain")
+
