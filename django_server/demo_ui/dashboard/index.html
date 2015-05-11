@@ -546,8 +546,9 @@
 										// MQTT client
 										var server = "dime.smartamerica.io";
 										var port = 1883;
+										var topic = "iot-1/d/+/evt/#";
 										//topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
-										topic = "iot-1/d/+/evt/#";
+										
 										var client = new Messaging.Client(server, port, clientId);
 
 			  							function connect() 
