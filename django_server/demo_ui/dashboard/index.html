@@ -106,6 +106,14 @@
 		  						anchor: new google.maps.Point(17,34),
 		  						scaledSize: new google.maps.Size(50,50)
 		  					};
+		  		var heartbeat = 
+		  					{
+		  						url: "img/heartbeat.png",
+		  						size: new google.maps.Size(614, 460),
+		  						origin: new google.maps.Point(0,0),
+		  						anchor: new google.maps.Point(17,34),
+		  						scaledSize: new google.maps.Size(50,50)
+		  					};
 
 
 		    function initialize() 
@@ -148,8 +156,9 @@
 			function addMarker(parsedPayLoad)
 			{
 				var image;
+				var propertyList = Object.getOwnPropertyNames(parsedPayLoad);
 
-				if (parsedPayLoad.event !== null && parsedPayLoad.geotag.lat!== null && parsedPayLoad.geotag.lon !== null)
+				if (propertyList.indexOf("event")>=0 && propertyList.indexOf("geotag")>=0)
 				{	
 					if (parsedPayLoad.event === "temperature" || 
 						parsedPayLoad.event === "SCALE_Temp_sheeva" || 
@@ -190,9 +199,9 @@
 					{
 						image = movement;
 					}
-					else if (parsedPayLoad.event === "SCALE_Flood_Arduino")
+					else if (parsedPayLoad.event === "heartbeat")
 					{
-						image = flood;
+						image = heartbeat;
 					}
 					else 
 					{
@@ -234,23 +243,25 @@
 
 			function updateAlertNumber(parsedPayLoad,topicString)
 			{
-				
-
-				now = moment();    
-				
-				if (parsedPayLoad.prio_class == "low") {
-					low = low+1;
-				}else if(parsedPayLoad.prio_class == "medium"){
-					medium = medium+1;
-				}else if(parsedPayLoad.prio_class == "high"){
-					high = high+1;
-				}else{
-					console.log("No priority detected");
-					console.log(parsedPayLoad);
+				var propertyList = Object.getOwnPropertyNames(parsedPayLoad);
+				if(propertyList.indexOf("prio_class")>=0)
+				{
+					now = moment();    
+					
+					if (parsedPayLoad.prio_class == "low") {
+						low = low+1;
+					}else if(parsedPayLoad.prio_class == "medium"){
+						medium = medium+1;
+					}else if(parsedPayLoad.prio_class == "high"){
+						high = high+1;
+					}else{
+						console.log("No priority detected");
+						console.log(parsedPayLoad);
+					}
+					$("#lowCount").text(low);
+					$("#mediumCount").text(medium);
+					$("#highCount").text(high);
 				}
-				$("#lowCount").text(low);
-				$("#mediumCount").text(medium);
-				$("#highCount").text(high);
 				
 			}
 
@@ -536,7 +547,7 @@
 										var server = "dime.smartamerica.io";
 										var port = 1883;
 										//topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
-										topic = "iot-1/d/#";
+										topic = "iot-1/d/+/evt/#";
 										var client = new Messaging.Client(server, port, clientId);
 
 			  							function connect() 
@@ -710,10 +721,10 @@
 										    updateAlertText();
 
 										    //only events with a high enough priority will be added to map
-										    if(parsedPayLoad.prio_value>10)
-										    {
-										    	addMarker(parsedPayLoad);
-										    }
+										    //if(parsedPayLoad.prio_value>10)
+										    //{
+										    addMarker(parsedPayLoad);
+										    //}
 										}
 
 										function keepAlive()
