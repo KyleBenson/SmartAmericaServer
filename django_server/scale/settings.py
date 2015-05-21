@@ -49,6 +49,13 @@ try:
             DATABASES['default']['USER'] = creds['user']
             DATABASES['default']['PASSWORD'] = creds['password']
             DATABASES['default']['NAME'] = creds['name']
+        if k.startswith('elephantsql'):
+            creds = v[0]['credentials']
+            DATABASES['default']['HOST'] = creds['host']
+            DATABASES['default']['PORT'] = creds['port']
+            DATABASES['default']['USER'] = creds['user']
+            DATABASES['default']['PASSWORD'] = creds['password']
+            DATABASES['default']['NAME'] = creds['name']
         if k.startswith('rabbitmq'):
             creds = v[0]['credentials']
             BROKER_URL = creds['url']
