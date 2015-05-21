@@ -1,0 +1,10 @@
+.cfignore
+_darcs
+.DS_Store
+.git
+.gitignore
+.hg
+/manifest.yml
+.svn
+*.log
+README
