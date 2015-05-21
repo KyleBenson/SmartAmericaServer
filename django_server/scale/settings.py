@@ -1,4 +1,5 @@
 import os, yaml
+import dj_database_url # turn CF database URI into settings
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -42,20 +43,9 @@ TWILIO_AUTH_TOKEN = 'blahblah'
 env = os.environ
 try:
     for k,v in yaml.load(env['VCAP_SERVICES']).items():
-        if k.startswith('postgresql'):
+        if k.startswith('elephantsql') or k.startswith('postgresql'):
             creds = v[0]['credentials']
-            DATABASES['default']['HOST'] = creds['host']
-            DATABASES['default']['PORT'] = creds['port']
-            DATABASES['default']['USER'] = creds['user']
-            DATABASES['default']['PASSWORD'] = creds['password']
-            DATABASES['default']['NAME'] = creds['name']
-        if k.startswith('elephantsql'):
-            creds = v[0]['credentials']
-            DATABASES['default']['HOST'] = creds['host']
-            DATABASES['default']['PORT'] = creds['port']
-            DATABASES['default']['USER'] = creds['user']
-            DATABASES['default']['PASSWORD'] = creds['password']
-            DATABASES['default']['NAME'] = creds['name']
+            DATABASES['default'] = dj_database_url.config(default=creds['uri'])
         if k.startswith('rabbitmq'):
             creds = v[0]['credentials']
             BROKER_URL = creds['url']
