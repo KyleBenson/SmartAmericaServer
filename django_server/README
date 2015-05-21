@@ -19,11 +19,13 @@ ENVIRONMENT VARIABLES
 
 You'll need to use `cf set-env` to define the following env vars:
 
-TWILIO_PHONE_NUMBER
+TWILIO_PHONE_NUMBER=+1xxxxxxxxxx
 
 For running running locally, add the following:
 TWILIO_ACCOUNT_SID
 TWILIO_AUTH_TOKEN
+URL_ROOT  <-- root url of the server, necessary for some Twilio stuff
+
+And here are some additional variables you might want to set:
 PHONE_NUMBER <-- your personal phone number to default to for sending messages
 EMERGENCY_CONTACT_NUMBER  <-- when someone calls the scale number, they will be redirected to this number.  Useful for questions about project or to report problems, while keeping this number anonymous
-URL_ROOT  <-- root url of the server, necessary for some Twilio stuff
