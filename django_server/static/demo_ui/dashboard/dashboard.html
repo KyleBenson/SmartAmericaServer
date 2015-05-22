@@ -193,7 +193,7 @@ $(function () {
 							$('.dropdown-menu').append('<li id="mqttStatus"><a onClick="connect()"><span class="glyphicon glyphicon-question-sign"></span>&nbsp; MQTT Status</a></li>');
 							var clientId = "client"+getRandomInt(0,1000000);
 	  // MQTT client
-	  var server = "dime.smartamerica.io";
+	  var server = "mqtt2.m2m4connectedlife.com";
 	  var port = 1883;
 	  //topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
 	  topic = "iot-1/d/#";
@@ -477,6 +477,9 @@ $(function () {
 
             var cell5 = row.insertCell();
             cell5.innerHTML = parsedPayLoad.value;
+
+			var cell6 = row.insertCell();
+			cell6.innerHTML = parsedPayLoad.value;
            
 		}
 		return;
@@ -485,8 +488,10 @@ $(function () {
 
 	function processMessage(msg) {
 	    //console.log("RAW Message: ");
-	    //console.log(msg);
+	    console.log(msg);
 	    var parsedPayLoad = parsePacket(msg.payloadString);
+		//console.log(parsedPayLoad);
+
 	    var topicString = msg.destinationName;
 
 	    updateAlertNumber(parsedPayLoad,topicString);
@@ -555,183 +560,168 @@ $(function () {
 					</div>
 					<font style = "color:transparent">.</font>
 					<script src="js/highcharts.js"></script>
-<script src="js/modules/exporting.js"></script>
-<div id="chart_div" style="margin-left:425px; margin-top: -255px; width: 325px; height:175px;"></div>
-<!--<div id="container" ></div>-->
-
-
-
-					</div>
+			<script src="js/modules/exporting.js"></script>
+			<div id="chart_div" style="margin-left:425px; margin-top: -245px; width: 325px; height:175px;"></div>
+			<!--<div id="container" ></div>-->
+		</div>
 					
 				
 	</div>
 	<div class="row clearfix">
-		<div class="col-md-3 column">
-			<div class = "jumbotron">
-				<div style = "background-color:#cecece; width:220px; margin-left:-36px; border-radius:15px" >
-				<table  style="width:200px; margin-left:15px">
-										<tr>
-										  <th style="text-align:center"><font color = "red" size = "3px">High</font></th>
-										  <th style="text-align:center"><font color = "yellow" size = "3px" >Medium</font></th> 
-										  <th style="text-align:center"><font color = "green" size = "3px">Low</font></th>
-										</tr>
-										<tr>
-										  <td  align="center"><font  size = "3px" id="highCount">0</font></td>
-										  <td  align="center"><font size = "3px" id="mediumCount">0</font></td> 
-										  <td  align="center"><font size = "3px" id="lowCount">0</font></td>
-										</tr>
-									</table>
-											
-											<!-- this was the counter of low medium and high priority events
-											<table  style="width:200px; margin-left:15px">
-												<tr>
-												  <th style="text-align:center"><font color = "red" size = "3px">High</font></th>
-												  <th style="text-align:center"><font color = "yellow" size = "3px" >Medium</font></th> 
-												  <th style="text-align:center"><font color = "green" size = "3px">Low</font></th>
-												</tr>
-												<tr>
-												  <td  align="center"><font  size = "3px" id="highCount">0</font></td>
-												  <td  align="center"><font size = "3px" id="mediumCount">0</font></td> 
-												  <td  align="center"><font size = "3px" id="lowCount">0</font></td>
-												</tr>
-											</table>
-											<!--keeps track of high/med/low count and displays it as number-->
-											
-											<div style = "margin-left:15px;margin-top:-2px" class="btn-group-vertical">
-												<!--dropdown1-->
-													<div class="btn-group">
-														<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-															Temperature <font size = "3" id = "temperatureCount">0</font> <span class="caret"></span>
-														</button>
-														
-														<ul class="dropdown-menu" role="menu">
-															<li><a href="#">Cold Temperature</a></li>
-															<li class="divider"></li>
-															<li><a href="#">High Temperature</a></li>
-															<li class="divider"></li>
-															<li><a href="#">Potential Fire</a></li>
-														</ul>
-
-													</div>
-												<!--dropdown2-->
-												<div class="btn-group">
-
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Seismic <font size = "3" id = "seismicCount">0</font> <span class="caret"></span>
-													</button>
-
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Small Earthquake</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Large Earthquake</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Small Aftershock</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Large Aftershock</a></li>
-													</ul>
-
-												</div>
-												<!--dropdown3-->
-												<div class="btn-group">
-
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Gas <font size = "3" id = "gasCount">0</font> <span class="caret"></span>
-													</button>
-
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Gas Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">CO2 Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">i-butane Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Gas Leakage</a></li>
-													</ul>
-
-												</div>
-												<!--dropdown4-->
-												<div class="btn-group">
-
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Light <font size = "3" id = "lightCount">0</font> <span class="caret"></span>
-													</button>
-
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Dark Environment</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Well Lit Environment</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Flash of Light</a></li>
-													</ul>
-
-												</div>
-												<!--dropdown5-->
-												<div class="btn-group">
-
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Motion <font size = "3" id = "motionCount">0</font> <span class="caret"></span>
-													</button>
-													
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Motion Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Inactive</a></li>
-													</ul>
-
-												</div>
-												<!--dropdown6-->
-												<div class="btn-group">
-
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px; margin-bottom:0px">
-														Flood <font size = "3" id = "floodCount">0</font> <span class="caret"></span>
-													</button>
-
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Flood</a></li>
-													</ul>
-
-												</div>			
-
-											</div>
-
-										</div>
-									<!--button group-->
-									
-								</div>
-								</div>
-			
-
-		<div class="col-md-9 column">
-			<div class = "jumbotron">
-				<div style = "overflow:scroll">
-					<table class="table" id="eventTable">
-						
-							<tr>
-								<th>
-									Event
-								</th>
-								<th>
-									Device
-								</th>
-								<th>
-									Time
-								</th>
-								<th>
-									Status
-								</th>
-								<th>
-									Value
-								</th>
-							</tr>
-						
-						<tbody>
-							
-						</tbody>
+		<div class="col-md-12 column">
+			<div class = "jumbotron" style="padding: 30px;">
+				<div style = "background-color:#cecece; width:100%; border-radius:10px" >
+					<table  style="width:100%; height: 30px;">
+						<tr>
+						  <th style="text-align:center"><font color = "red" size = "3px">High</font></th>
+						  <th style="text-align:center"><font color = "yellow" size = "3px" >Medium</font></th>
+						  <th style="text-align:center"><font color = "green" size = "3px">Low</font></th>
+						</tr>
+						<tr>
+						  <td  align="center"><font  size = "3px" id="highCount">0</font></td>
+						  <td  align="center"><font size = "3px" id="mediumCount">0</font></td>
+						  <td  align="center"><font size = "3px" id="lowCount">0</font></td>
+						</tr>
 					</table>
+
+					<!--keeps track of high/med/low count and displays it as number-->
+
+					<div style = "padding-left:30px; padding-bottom: 30px; font-size: 18px;" class="btn-group-horizontal">
+						<!--dropdown1-->
+							<div class="btn-group">
+								<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+									Temperature <font size = "3" id = "temperatureCount">0</font> <span class="caret"></span>
+								</button>
+
+								<ul class="dropdown-menu" role="menu">
+									<li><a href="#">Cold Temperature</a></li>
+									<li class="divider"></li>
+									<li><a href="#">High Temperature</a></li>
+									<li class="divider"></li>
+									<li><a href="#">Potential Fire</a></li>
+								</ul>
+
+							</div>
+						<!--dropdown2-->
+						<div class="btn-group">
+
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+								Seismic <font size = "3" id = "seismicCount">0</font> <span class="caret"></span>
+							</button>
+
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#">Small Earthquake</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Large Earthquake</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Small Aftershock</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Large Aftershock</a></li>
+							</ul>
+
+						</div>
+						<!--dropdown3-->
+						<div class="btn-group">
+
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+								Gas <font size = "3" id = "gasCount">0</font> <span class="caret"></span>
+							</button>
+
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#">Gas Detected</a></li>
+								<li class="divider"></li>
+								<li><a href="#">CO2 Detected</a></li>
+								<li class="divider"></li>
+								<li><a href="#">i-butane Detected</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Gas Leakage</a></li>
+							</ul>
+
+						</div>
+						<!--dropdown4-->
+						<div class="btn-group">
+
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+								Light <font size = "3" id = "lightCount">0</font> <span class="caret"></span>
+							</button>
+
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#">Dark Environment</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Well Lit Environment</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Flash of Light</a></li>
+							</ul>
+
+						</div>
+						<!--dropdown5-->
+						<div class="btn-group">
+
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+								Motion <font size = "3" id = "motionCount">0</font> <span class="caret"></span>
+							</button>
+
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#">Motion Detected</a></li>
+								<li class="divider"></li>
+								<li><a href="#">Inactive</a></li>
+							</ul>
+
+						</div>
+						<!--dropdown6-->
+						<div class="btn-group">
+
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px;">
+								Flood <font size = "3" id = "floodCount">0</font> <span class="caret"></span>
+							</button>
+
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#">Flood</a></li>
+							</ul>
+
+						</div>
+					</div>
+
 				</div>
+				<!--button group-->
+									
 			</div>
 		</div>
-		
+	</div>
+		<div class="row clearfix">
+			<div class="col-md-12 column">
+				<div class = "jumbotron" style="font-size: 15px; padding: 25px; padding-top:20px;">
+					<div>
+						<h2>Live sensing data:</h2>
+						<table class="table" id="eventTable">
+								<tr>
+									<th>
+										Event
+									</th>
+									<th>
+										Device
+									</th>
+									<th>
+										Time
+									</th>
+									<th>
+										Status
+									</th>
+									<th>
+										Value
+									</th>
+									<th>
+										Source
+									</th>
+								</tr>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+		</div>
 	</div>
 </div>
 </body>

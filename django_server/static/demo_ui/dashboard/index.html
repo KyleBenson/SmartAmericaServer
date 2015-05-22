@@ -39,8 +39,8 @@
 		<style>
 	    	#map_canvas
 	    	{
-	        	width: 420px;
-	        	height: 420px;
+	        	width: 100%;
+	        	height: 1000px;
 	     	}
 	    </style>
 
@@ -328,7 +328,7 @@
 				return (hh + "h" + mm + "m" + ss + "s");
 	    //document.write(updatedDate + " (" + hh + "h" + mm + "m" + ss + "s ago)");
 			}
-	<!--
+			<!--
 
 			-->
 			function specificOnConnectionLoss()
@@ -434,9 +434,252 @@
 		        chart.draw(data, options);
 		    }
 
-    	</script> 
+    	</script>
 
-		
+
+		<script src="js/moment.min.js"></script>
+		<!--<button id="publish" onclick="connect()">Connect Babe!</button>-->
+		<!--<button id="publish" onclick="publish()">Publish!</button>-->
+		<script src="js/mqttws31.js"></script>
+		<!--Sets up MQTT subscription to Charles' data-->
+		<script>
+			function getRandomInt (min, max)
+			{
+				return Math.floor(Math.random() * (max - min + 1)) + min;
+			}
+
+			$('.dropdown-menu').append('<li id="mqttStatus"><a onClick="connect()"><span class="glyphicon glyphicon-question-sign"></span>&nbsp; MQTT Status</a></li>');
+
+			var clientId = "client"+getRandomInt(0,1000000);
+			// MQTT client
+			var server = "dime.smartamerica.io";
+			var port = 1883;
+			var topic = "iot-1/d/+/evt/#";
+			//topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
+
+			var client = new Messaging.Client(server, port, clientId);
+
+			function connect()
+			{
+				//Use this trick to only load this when the DOM is ready since the processMessage function can be partial specific which will be loaded after the navbar where the MQTT template (this page) is loaded
+
+				$( document ).ready(function()
+				{
+					client.onMessageArrived = processMessage;
+				});
+
+				client.onConnectionLoss = function()
+				{
+					console.log("Lost connection to the MQTT broker");
+					$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Connection lost</a>');
+					specificOnConnectionLoss();       //Allow for specific functions to be defined on the connection loss.
+					console.log("Reconnecting to broker in 2 seconds");
+					window.setTimeout('connect()',2000);
+				}
+
+				console.log("Attempting connection to " + server + ":" + port + " with client id: " + clientId);
+				client.connect(
+						{
+
+							onSuccess: function()
+							{
+								console.log("Connected to the MQTT broker");
+								$("#mqttStatus").html('<a onClick="disconnect()"><span class="glyphicon glyphicon-ok-circle"></span>&nbsp; Connected</a>');
+								client.subscribe(topic);
+							},
+							onFailure: function()
+							{
+								console.log("Could not connect to the MQTT broker");
+								$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Not Connected</a>');
+							}
+						});
+			}
+
+			function publish(message)
+			{
+				var msgBody = JSON.stringify(message);
+				var msgObj = new Messaging.Message(msgBody);
+				msgObj.destinationName = topic;
+				client.send(msgObj);
+				console.log("Sent message " + msgBody + " to topic "+ topic);
+			}
+
+			function parsePacket(payload)
+			{
+				payload = JSON.parse(payload);
+				return payload.d;
+			}
+
+			var numAlerts =0;
+			var initAlerts =5;
+			var listAlerts = [];
+			var minPriority = 0;
+
+			function initAlert()
+			{
+				for(var j = 0;  j<initAlerts; j++ )
+				{
+					listAlerts.push(JSON.parse('{"prio_value": 0, "event": "init"}'));
+				}
+				return;
+			}
+
+			function addAlert(parsedPayLoad,topicString)
+			{
+				var numInsert = 0;
+				if (parsedPayLoad.prio_value===null || parsedPayLoad.event===null)
+				{
+					return;
+				}
+				else if (parsedPayLoad.prio_value <= minPriority)
+				{
+					return;
+				}
+				else
+				{
+					if (listAlerts.length > initAlerts)
+					{
+						listAlerts.splice(5,1);
+					}
+
+					//add a check to see if it has reached the efnd of the array
+					//store the value of the former element before replace and rest of the list
+
+
+					for (var i = 0; i<listAlerts.length; i++)
+					{
+
+						if(parsedPayLoad.prio_value>listAlerts[i].prio_value)
+						{
+							listAlerts.splice(i,0,parsedPayLoad);
+							break;
+						}
+
+					}
+
+					//listAlerts[numAlerts] = parsedPayLoad;
+					numAlerts++;
+
+				}
+
+			}
+
+			function alertName(elementNum)
+			{
+				return listAlerts[elementNum].event;
+			}
+
+			function alertValue(elementNum)
+			{
+				return listAlerts[elementNum].prio_value;
+			}
+
+			function clearAlertText(parsedPayLoad,topicString)
+			{
+				now = moment();
+
+				$("#alert1").text(" ");
+				$("#alert2").text(" ");
+				$("#alert3").text(" ");
+				$("#alert4").text(" ");
+				$("#alert5").text(" ");
+			}
+
+			function updateAlertText()
+			{
+
+				now = moment();
+
+				$("#alert1").text(listAlerts[0].prio_value +": "+listAlerts[0].event);
+				$("#alert2").text(listAlerts[1].prio_value +": "+listAlerts[1].event);
+				$("#alert3").text(listAlerts[2].prio_value +": "+listAlerts[2].event);
+				$("#alert4").text(listAlerts[3].prio_value +": "+listAlerts[3].event);
+				$("#alert5").text(listAlerts[4].prio_value +": "+listAlerts[4].event);
+			}
+
+
+			function calcTimeDiff(timestamp)
+			{
+				var updatedDate = new Date(timestamp*1000);
+				var now = new Date();
+				var timeAgo = now.getTime() - timestamp;
+				var hh = Math.floor(timeAgo / 1000 / 60 / 60);
+				timeAgo -= hh * 1000 * 60 * 60;
+				var mm = Math.floor(timeAgo / 1000 / 60);
+				timeAgo -= mm * 1000 * 60;
+				var ss = Math.floor(timeAgo / 1000);
+				timeAgo -= ss * 1000;
+				return (hh + "h" + mm + "m" + ss + "s");
+				//document.write(updatedDate + " (" + hh + "h" + mm + "m" + ss + "s ago)");
+			}
+
+			function processMessage(msg)
+			{
+				//console.log("RAW Message: ");
+				//console.log(msg);
+				console.log("processMessage");
+				var parsedPayLoad = parsePacket(msg.payloadString);
+				var topicString = msg.destinationName;
+
+				updateAlertNumber(parsedPayLoad,topicString);
+				updateAlertNumber2(parsedPayLoad,topicString);
+				updateChart();
+				drawChart()
+
+				addAlert(parsedPayLoad,topicString);
+				updateAlertText();
+
+				//only events with a high enough priority will be added to map
+				//if(parsedPayLoad.prio_value>10)
+				//{
+				addMarker(parsedPayLoad);
+				//}
+			}
+
+			function keepAlive()
+			{
+				var msgBody = JSON.stringify('{"d":{"event":"keepAlive"}}');
+				var msgObj = new Messaging.Message(msgBody);
+				msgObj.destinationName = "iot-1/d/";
+				client.send(msgObj);
+			}
+
+
+			console.log("before init alert");
+			initAlert();
+
+			setInterval(function(){keepAlive()},3000);
+
+			console.log("before connect");
+			connect();
+
+		</script>
+
+		<script type="text/javascript">
+
+			bootstrap_alert = function()
+			{
+
+			}
+			bootstrap_alert.warning = function(message)
+			{
+				$('#alert_placeholder').html('<div id = "alert_placeholder"><div id="myAlert" class="alert alert-danger alert-dismissable"><button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button><span>'+message+'</span></div></div>')
+			}
+
+		</script>
+
+		<script type="text/javascript">
+			$(function()
+			{
+				$("#myAlert").bind('closed.bs.alert', function ()
+				{
+					bootstrap_alert.warning('Your text goes here');
+				});
+			});
+
+		</script>
+
+
 	</head>
 
 	<body>
@@ -444,433 +687,294 @@
 		<div class="container">
 			
 			<div class="row clearfix">
-				
-				<div class="col-md-12 column">
-					
-					<nav class="navbar navbar-default" role="navigation">
-						
-						<div class="navbar-header">
-							 
-							 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1"> 
-							 	
-							 	<span class="sr-only">Toggle navigation</span>
-							 	<span class="icon-bar"></span>
-							 	<span class="icon-bar"></span>
-							 	<span class="icon-bar"></span>
+				<div class="row clearfix">
+					<div class="col-md-12 column">
 
-							 </button> 
+							<nav class="navbar navbar-default" role="navigation">
 
-							 <a class="navbar-brand" href="#">SCALE Project</a>
+								<div class="navbar-header">
 
+									 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+
+										<span class="sr-only">Toggle navigation</span>
+										<span class="icon-bar"></span>
+										<span class="icon-bar"></span>
+										<span class="icon-bar"></span>
+
+									 </button>
+
+									 <a class="navbar-brand" href="#">SCALE Project</a>
+
+								</div>
+
+								<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+
+									<ul class="nav navbar-nav">
+
+										<li class = "active">
+											<a href ="index.html">Map View</a>
+										</li>
+										<li class="default">
+											<a href="dashboard.html">Dashboard</a>
+										</li>
+										<li>
+											<a href="events.html">Events</a>
+										</li>
+
+									</ul>
+
+									<form class="navbar-form navbar-left" role="search" action="#" onsubmit="showPos();">
+
+										<!--<div class="form-group">-->
+										<!--	<input placeholder="Lat" type="text" class="form-control" id="lat">-->
+										<!--	<input placeholder="Lon" type="text" class="form-control" id="lon">-->
+										<!--</div> -->
+										<!---->
+										<!--<button type="submit" class="btn btn-default" >Submit-->
+										<!--</button>-->
+
+									</form>
+
+									<ul class="nav navbar-nav navbar-right">
+										<button type="button" class="btn btn-default navbar-btn">Sign Out
+										</button>
+									</ul>
+
+								</div>
+
+							</nav>
 						</div>
-						
-						<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+					</div>
+					<div class="row clearfix">
+						<div class="col-md-12 column">
+							<div class = "jumbotron">
+								<div>
+									<div style ="margin-left:0px;margin-right:400px;background-color:#cecece;height:175px;width:400px;border-radius:20px;">
+										<img style = "margin-left:25px;margin-top:20px;" src="http://scalesdemo.com/images/logo.png" alt="Scales Logo" height="130" width="350">
+									</div>
+								<div style ="margin-right:0px;margin-left:0px;margin-top:0px;width:1000px;height:25px;">
 
-							<ul class="nav navbar-nav">
+								</div>
 
-								<li class = "active">
-									<a href ="index.html">Map View</a>
-								</li>
-								<li class="default">
-									<a href="dashboard.html">Dashboard</a>
-								</li>
-								<li>
-									<a href="events.html">Events</a>
-								</li>
+								<font style = "color:transparent">-</font>
 
-							</ul>
+								<script src="js/highcharts.js"></script>
 
-							<form class="navbar-form navbar-left" role="search" action="#" onsubmit="showPos();">
-								
-								<!--<div class="form-group">-->
-								<!--	<input placeholder="Lat" type="text" class="form-control" id="lat">-->
-								<!--	<input placeholder="Lon" type="text" class="form-control" id="lon">-->
-								<!--</div> -->
-<!---->
-								<!--<button type="submit" class="btn btn-default" >Submit-->
-								<!--</button>-->
+								<script src="js/modules/exporting.js"></script>
 
-							</form>
+								<div id="chart_div" style="margin-left:425px; margin-top: -245px; width: 325px; height:175px;"></div>
+								<!--<div id="container" ></div>-->
+								</div>
 
-							<ul class="nav navbar-nav navbar-right">
-								<button type="button" class="btn btn-default navbar-btn">Sign Out
-								</button>
-							</ul>
-
-						</div>
-						
-					</nav>
-
-					<div class = "jumbotron">
-						<div>
-							<div style ="margin-left:0px;margin-right:400px;background-color:#cecece;height:175px;width:400px;border-radius:20px;">
-								<img style = "margin-left:25px;margin-top:20px;" src="http://scalesdemo.com/images/logo.png" alt="Scales Logo" height="130" width="350">
 							</div>
-						<div style ="margin-right:0px;margin-left:0px;margin-top:0px;width:1000px;height:25px;">
-							
-						</div>
-						
-						<font style = "color:transparent">-</font>
-
-						<script src="js/highcharts.js"></script>
-
-						<script src="js/modules/exporting.js"></script>
-						
-						<div id="chart_div" style="margin-left:425px; margin-top: -255px; width: 325px; height:175px;"></div>
-						<!--<div id="container" ></div>-->
 						</div>
 						
 					</div>
-						
-					<div>
 
-						<div class="row clearfix">
-		
-							<div class="col-md-3 column">
-								
-								<div class = "jumbotron" style = "height:600px">
-									<script src="js/moment.min.js"></script>
-									<!--<button id="publish" onclick="connect()">Connect Babe!</button>-->
-									<!--<button id="publish" onclick="publish()">Publish!</button>-->
-									<script src="js/mqttws31.js"></script>
-									<!--Sets up MQTT subscription to Charles' data-->
-									<script>
-										function getRandomInt (min, max) 
-										{
-											return Math.floor(Math.random() * (max - min + 1)) + min;
-										}
-										
-										$('.dropdown-menu').append('<li id="mqttStatus"><a onClick="connect()"><span class="glyphicon glyphicon-question-sign"></span>&nbsp; MQTT Status</a></li>');
-										
-										var clientId = "client"+getRandomInt(0,1000000);
-										// MQTT client
-										var server = "dime.smartamerica.io";
-										var port = 1883;
-										var topic = "iot-1/d/+/evt/#";
-										//topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
-										
-										var client = new Messaging.Client(server, port, clientId);
+					<div class="row clearfix">
+						<div class="col-md-12 column">
 
-			  							function connect() 
-			  							{
-				    						//Use this trick to only load this when the DOM is ready since the processMessage function can be partial specific which will be loaded after the navbar where the MQTT template (this page) is loaded
-				    						
-				    						$( document ).ready(function() 
-				    						{
-				    							client.onMessageArrived = processMessage;
-				    						});
-				    						
-				    						client.onConnectionLoss = function() 
-				    						{
-										    	console.log("Lost connection to the MQTT broker");
-										    	$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Connection lost</a>');
-				      							specificOnConnectionLoss();       //Allow for specific functions to be defined on the connection loss.
-											    console.log("Reconnecting to broker in 2 seconds");
-											    window.setTimeout('connect()',2000);
-				  							}
-				  							
-				  							console.log("Attempting connection to " + server + ":" + port + " with client id: " + clientId);
-				  							client.connect(
-				  							{
+							<div class = "jumbotron" style="padding: 30px;">
+									<div style = "background-color:#cecece; width:100%; border-radius:20px" >
+										<!--keeps track of high/med/low count and displays it as number-->
 
-											  	onSuccess: function() 
-											  	{
-											  		console.log("Connected to the MQTT broker");
-											  		$("#mqttStatus").html('<a onClick="disconnect()"><span class="glyphicon glyphicon-ok-circle"></span>&nbsp; Connected</a>');
-											  		client.subscribe(topic);
-											  	},
-											  	onFailure: function()
-											  	{
-											  		console.log("Could not connect to the MQTT broker");
-											  		$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Not Connected</a>');
-											  	}
-				  							});
-										}
-										
-										function publish(message) 
-										{
-											var msgBody = JSON.stringify(message);
-											var msgObj = new Messaging.Message(msgBody);
-											msgObj.destinationName = topic;
-											client.send(msgObj);
-											console.log("Sent message " + msgBody + " to topic "+ topic);
-										}
-
-										function parsePacket(payload)
-										{
-											payload = JSON.parse(payload);
-											return payload.d;
-										}
-
-										var numAlerts =0;
-										var initAlerts =5;
-										var listAlerts = [];
-										var minPriority = 0;
-
-										function initAlert()
-										{
-											for(var j = 0;  j<initAlerts; j++ )
-											{	
-												listAlerts.push(JSON.parse('{"prio_value": 0, "event": "init"}'));
-											}
-											return;
-										}
-
-										function addAlert(parsedPayLoad,topicString)
-										{
-											var numInsert = 0;
-											if (parsedPayLoad.prio_value===null || parsedPayLoad.event===null)	
-											{
-												return;
-											}
-											else if (parsedPayLoad.prio_value <= minPriority)
-											{
-												return;
-											}
-											else
-											{
-												if (listAlerts.length > initAlerts)
-												{
-													listAlerts.splice(5,1);
-												}
-										
-												//add a check to see if it has reached the efnd of the array
-												//store the value of the former element before replace and rest of the list
-												
-
-												for (var i = 0; i<listAlerts.length; i++)
-												{
-
-													if(parsedPayLoad.prio_value>listAlerts[i].prio_value)
-													{
-														listAlerts.splice(i,0,parsedPayLoad);
-														break;
-													}
-													
-												}
-												
-												//listAlerts[numAlerts] = parsedPayLoad;
-												numAlerts++;		
-
-											}
-											
-										}
-					
-										function alertName(elementNum)
-										{
-											return listAlerts[elementNum].event;
-										}
-
-										function alertValue(elementNum)
-										{
-											return listAlerts[elementNum].prio_value;
-										}
-
-										function clearAlertText(parsedPayLoad,topicString)
-										{
-												now = moment();    
-											
-											$("#alert1").text(" ");
-											$("#alert2").text(" ");
-											$("#alert3").text(" ");
-											$("#alert4").text(" ");
-											$("#alert5").text(" ");
-										}
-
-										function updateAlertText()
-										{
-										
-										now = moment();    
-											
-											$("#alert1").text(listAlerts[0].prio_value +": "+listAlerts[0].event);
-											$("#alert2").text(listAlerts[1].prio_value +": "+listAlerts[1].event);
-											$("#alert3").text(listAlerts[2].prio_value +": "+listAlerts[2].event);
-											$("#alert4").text(listAlerts[3].prio_value +": "+listAlerts[3].event);
-											$("#alert5").text(listAlerts[4].prio_value +": "+listAlerts[4].event);
-										}
-
-
-										function calcTimeDiff(timestamp)
-										{
-											var updatedDate = new Date(timestamp*1000);
-											var now = new Date();
-											var timeAgo = now.getTime() - timestamp;
-											var hh = Math.floor(timeAgo / 1000 / 60 / 60);
-											timeAgo -= hh * 1000 * 60 * 60;
-											var mm = Math.floor(timeAgo / 1000 / 60);
-											timeAgo -= mm * 1000 * 60;
-											var ss = Math.floor(timeAgo / 1000);
-											timeAgo -= ss * 1000;
-											return (hh + "h" + mm + "m" + ss + "s");
-								    		//document.write(updatedDate + " (" + hh + "h" + mm + "m" + ss + "s ago)");
-										}
-
-										function processMessage(msg) 
-										{
-										    //console.log("RAW Message: ");
-										    //console.log(msg);
-										    console.log("processMessage");
-										    var parsedPayLoad = parsePacket(msg.payloadString);
-										    var topicString = msg.destinationName;
-
-										    updateAlertNumber(parsedPayLoad,topicString);
-										    updateAlertNumber2(parsedPayLoad,topicString);
-										    updateChart();
-										    drawChart()
-
-										    addAlert(parsedPayLoad,topicString);
-										    updateAlertText();
-
-										    //only events with a high enough priority will be added to map
-										    //if(parsedPayLoad.prio_value>10)
-										    //{
-										    addMarker(parsedPayLoad);
-										    //}
-										}
-
-										function keepAlive()
-										{
-											var msgBody = JSON.stringify('{"d":{"event":"keepAlive"}}');
-											var msgObj = new Messaging.Message(msgBody);
-											msgObj.destinationName = "iot-1/d/";
-											client.send(msgObj);
-										}
-
-
-										console.log("before init alert");
-											initAlert();
-
-										setInterval(function(){keepAlive()},3000);
-
-										console.log("before connect");
-											connect();
-
-									</script>
-									
-										<div style = "background-color:#cecece; width:230px; margin-left:-47px; border-radius:20px" >
-											
-											<!-- this was the counter of low medium and high priority events
-											<table  style="width:200px; margin-left:15px">
-												<tr>
-												  <th style="text-align:center"><font color = "red" size = "3px">High</font></th>
-												  <th style="text-align:center"><font color = "yellow" size = "3px" >Medium</font></th> 
-												  <th style="text-align:center"><font color = "green" size = "3px">Low</font></th>
-												</tr>
-												<tr>
-												  <td  align="center"><font  size = "3px" id="highCount">0</font></td>
-												  <td  align="center"><font size = "3px" id="mediumCount">0</font></td> 
-												  <td  align="center"><font size = "3px" id="lowCount">0</font></td>
-												</tr>
-											</table>
-											<!--keeps track of high/med/low count and displays it as number-->
-											
-											<div style = "margin-left:15px;margin-top:-2px" class="btn-group-vertical">
-												<!--dropdown1-->
-													<div class="btn-group">
-														<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-															Temperature <font size = "3" id = "temperatureCount">0</font> <span class="caret"></span>
-														</button>
-														
-														<ul class="dropdown-menu" role="menu">
-															<li><a href="#">Cold Temperature</a></li>
-															<li class="divider"></li>
-															<li><a href="#">High Temperature</a></li>
-															<li class="divider"></li>
-															<li><a href="#">Potential Fire</a></li>
-														</ul>
-
-													</div>
-												<!--dropdown2-->
+										<div style = "padding: 15px;" class="btn-group-horizontal">
+											<!--dropdown1-->
 												<div class="btn-group">
-
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Seismic <font size = "3" id = "seismicCount">0</font> <span class="caret"></span>
+													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+														Temperature <font size = "3" id = "temperatureCount">0</font> <span class="caret"></span>
 													</button>
 
 													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Small Earthquake</a></li>
+														<li><a href="#">Cold Temperature</a></li>
 														<li class="divider"></li>
-														<li><a href="#">Large Earthquake</a></li>
+														<li><a href="#">High Temperature</a></li>
 														<li class="divider"></li>
-														<li><a href="#">Small Aftershock</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Large Aftershock</a></li>
+														<li><a href="#">Potential Fire</a></li>
 													</ul>
 
 												</div>
-												<!--dropdown3-->
-												<div class="btn-group">
+											<!--dropdown2-->
+											<div class="btn-group">
 
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Gas <font size = "3" id = "gasCount">0</font> <span class="caret"></span>
-													</button>
+												<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+													Seismic <font size = "3" id = "seismicCount">0</font> <span class="caret"></span>
+												</button>
 
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Gas Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">CO2 Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">i-butane Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Gas Leakage</a></li>
-													</ul>
+												<ul class="dropdown-menu" role="menu">
+													<li><a href="#">Small Earthquake</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Large Earthquake</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Small Aftershock</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Large Aftershock</a></li>
+												</ul>
 
-												</div>
-												<!--dropdown4-->
-												<div class="btn-group">
+											</div>
+											<!--dropdown3-->
+											<div class="btn-group">
 
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Light <font size = "3" id = "lightCount">0</font> <span class="caret"></span>
-													</button>
+												<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+													Gas <font size = "3" id = "gasCount">0</font> <span class="caret"></span>
+												</button>
 
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Dark Environment</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Well Lit Environment</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Flash of Light</a></li>
-													</ul>
+												<ul class="dropdown-menu" role="menu">
+													<li><a href="#">Gas Detected</a></li>
+													<li class="divider"></li>
+													<li><a href="#">CO2 Detected</a></li>
+													<li class="divider"></li>
+													<li><a href="#">i-butane Detected</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Gas Leakage</a></li>
+												</ul>
 
-												</div>
-												<!--dropdown5-->
-												<div class="btn-group">
+											</div>
+											<!--dropdown4-->
+											<div class="btn-group">
 
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px">
-														Motion <font size = "3" id = "motionCount">0</font> <span class="caret"></span>
-													</button>
-													
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Motion Detected</a></li>
-														<li class="divider"></li>
-														<li><a href="#">Inactive</a></li>
-													</ul>
+												<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+													Light <font size = "3" id = "lightCount">0</font> <span class="caret"></span>
+												</button>
 
-												</div>
-												<!--dropdown6-->
-												<div class="btn-group">
+												<ul class="dropdown-menu" role="menu">
+													<li><a href="#">Dark Environment</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Well Lit Environment</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Flash of Light</a></li>
+												</ul>
 
-													<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:200px; margin-bottom:0px">
-														Flood <font size = "3" id = "floodCount">0</font> <span class="caret"></span>
-													</button>
+											</div>
+											<!--dropdown5-->
+											<div class="btn-group">
 
-													<ul class="dropdown-menu" role="menu">
-														<li><a href="#">Flood</a></li>
-													</ul>
+												<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+													Motion <font size = "3" id = "motionCount">0</font> <span class="caret"></span>
+												</button>
 
-												</div>			
+												<ul class="dropdown-menu" role="menu">
+													<li><a href="#">Motion Detected</a></li>
+													<li class="divider"></li>
+													<li><a href="#">Inactive</a></li>
+												</ul>
+
+											</div>
+											<!--dropdown6-->
+											<div class="btn-group">
+
+												<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = width:150px;">
+													Flood <font size = "3" id = "floodCount">0</font> <span class="caret"></span>
+												</button>
+
+												<ul class="dropdown-menu" role="menu">
+													<li><a href="#">Flood</a></li>
+												</ul>
 
 											</div>
 
 										</div>
-									<!--button group-->
-									
-								</div>
 
+									</div>
+									<!--button group-->
+
+
+									<div style = "background-color:#cecece; width:100%; border-radius:20px">
+										<!--green alert-->
+										<div style = "width:100%;margin-top:20px; margin-bottom:-10px; padding: 30px;">
+											<div class="btn-group-horizontal" style="margin-bottom:-20px;">
+												<!--http://jsfiddle.net/stu2005/p4e3y/5/-->
+												<!--
+												<input type = "button" id = "clickme" value="Click me!"/>
+												-->
+												<!-- useful way to add and remove alerts -->
+												<!--
+													<div id = "alert_placeholder">
+
+													<div id="myAlert" class="alert alert-success">
+												   <a href="#" class="close" data-dismiss="alert">&times;</a>
+												   <strong>Success!</strong> the result is successful.
+												-->
+												<div class="btn-group">
+													<a href = "#">
+														<div  class="alert alert-success alert-dismissible" role="alert" style="width: 200px;">
+															<button type="button" class="close" data-dismiss="alert">
+																<span aria-hidden="true">&times;</span>
+																<span class="sr-only">Close</span>
+															</button>
+
+															<font size = "3" id = "alert1">Alert 1
+															</font>
+														</div>
+													</a>
+													<!--yellow alert-->
+													</div>
+												<div class="btn-group">
+
+													<a href = "#">
+														<div class="alert alert-warning alert-dismissible" role="alert" style="width: 200px;">
+															<button type="button" class="close" data-dismiss="alert">
+																<span aria-hidden="true">&times;</span>
+																<span class="sr-only">Close</span>
+															</button>
+
+															<font size = "3" id = "alert2" >Alert 2
+															</font>
+
+														</div>
+													</a>
+													<!--red alert-->
+													</div>
+												<div class="btn-group">
+													<a href = "#">
+														<div  class="alert alert-danger alert-dismissible" role="alert" style="width: 200px;">
+															<button type="button" class="close" data-dismiss="alert">
+																<span aria-hidden="true">&times;</span>
+																<span class="sr-only">Close</span>
+															</button>
+
+															<font size = "3" id = "alert3">Alert 3
+															</font>
+														</div>
+													</a>
+												</div>
+												<div class="btn-group">
+													<a href = "#">
+														<div  class="alert alert-danger alert-dismissible" role="alert" style="width: 200px;">
+															<button type="button" class="close" data-dismiss="alert">
+																<span aria-hidden="true">&times;</span>
+																<span class="sr-only">Close</span>
+															</button>
+
+															<font size = "3" id = "alert4">Alert 3
+															</font>
+
+														</div>
+													</a>
+												</div>
+												<div class="btn-group">
+													<a href = "#">
+														<div  class="alert alert-danger alert-dismissible" role="alert" style="width: 200px;">
+															<button type="button" class="close" data-dismiss="alert">
+																<span aria-hidden="true">&times;</span>
+																<span class="sr-only">Close</span>
+															</button>
+
+															<font size = "3" id = "alert5">Alert 3
+															</font>
+														</div>
+													</a>
+												</div>
+											</div>
+										</div>
+									</div>
 							</div>
-							
-							<div class="col-md-6 column">
-								<div class="jumbotron" style = "height:600px">
-									<div style = "background-color:#cecece; width:450px;height:420px;border-radius:20px; margin-left:-15px">
+						</div>
+					</div>
+				<div class="row clearfix">
+							<div class="col-md-12 column">
+								<div class="jumbotron" style = "width:100%; height:1200px; padding: 30px; margin-top: 10px;">
+									<div style = "background-color:#cecece; width:100%; height:1150px; border-radius:20px;">
 
 										<table style="width:300px; margin:auto">
 											<tr>
@@ -885,181 +989,22 @@
 											</tr>
 
 											<tr>
-											<center>
 											  <td><center><img style = "width:50px;height:50px" src = "img/fire-icon.png"/></center></td>
 											   <td><center><img style = "width:50px;height:50px" src = "img/earthquake.png"/></center></td>
 											  <td><center><img style = "width:50px; height:50px" src = "img/gas.png"/></center></td>
 											  <td><center><img style = "width:50px; height:50px" src = "img/lightbulb.png"/></center></td>
 											  <td><center><img style = "width:50px; height:50px" src = "img/running.png"/></center></td>
 											  <td><center><img style = "width:50px; height:50px" src = "img/water-drop.png"/></center</td>
-
-						
-		  	
-
-											
 											</tr>
 
 
 										</table>	
 									
 										<!-- map -->
-										<div style = "margin-left:15px" id="map_canvas">
-
-										</div>
+										<div id="map_canvas" style="margin-top: 15px;"></div>
 									</div>
 								</div>
 							</div>
-								
-							<div class ="col-md-3 column" >
-								
-								<div class ="jumbotron" style = "height:600px">
-									
-									<div style = "background-color:#cecece; width:230px; margin-left:-47px; border-radius:20px">
-										<!--green alert-->
-										<div style = "width:200px;margin-left:15px">
-											
-											<div>
-					<!--http://jsfiddle.net/stu2005/p4e3y/5/-->			
-					<!--							
-					<input type = "button" id = "clickme" value="Click me!"/>
-					-->
-		<!-- useful way to add and remove alerts -->
-		<!--
-			<div id = "alert_placeholder">	
-
-			<div id="myAlert" class="alert alert-success">
-		   <a href="#" class="close" data-dismiss="alert">&times;</a>
-		   <strong>Success!</strong> the result is successful.
-		-->
-
-
-												<a href = "#">
-													<div  class="alert alert-success alert-dismissible" role="alert">
-														<button type="button" class="close" data-dismiss="alert">
-													  		<span aria-hidden="true">&times;</span>
-													  		<span class="sr-only">Close</span>
-													  	</button>
-												  		
-												  		<font size = "1" id = "alert1">Alert 1
-												  		</font>
-													</div>
-												</a>
-				<!--yellow alert-->
-
-
-												<a href = "#">
-													<div class="alert alert-warning alert-dismissible" role="alert">
-												  		<button type="button" class="close" data-dismiss="alert">
-												  			<span aria-hidden="true">&times;</span>
-												  			<span class="sr-only">Close</span>
-												  		</button>
-												  
-														<font size = "1" id = "alert2" >Alert 2
-														</font>
-
-													</div>
-												</a>
-												<!--red alert-->
-
-												<a href = "#">
-													<div  class="alert alert-danger alert-dismissible" role="alert">
-												  		<button type="button" class="close" data-dismiss="alert">
-												  			<span aria-hidden="true">&times;</span>
-												  			<span class="sr-only">Close</span>
-												  		</button>
-													  	
-													  	<font size = "1" id = "alert3">Alert 3
-													  	</font>
-													</div>
-												</a>
-
-
-												<a href = "#">
-													<div  class="alert alert-danger alert-dismissible" role="alert">
-												 		<button type="button" class="close" data-dismiss="alert">
-												 			<span aria-hidden="true">&times;</span>
-												 			<span class="sr-only">Close</span>
-												 		</button>
-												  		
-												  		<font size = "1" id = "alert4">Alert 3
-												  		</font>
-
-													</div>
-												</a>
-
-
-												<a href = "#">
-													<div  class="alert alert-danger alert-dismissible" role="alert">
-												  		<button type="button" class="close" data-dismiss="alert">
-												  			<span aria-hidden="true">&times;</span>
-												  			<span class="sr-only">Close</span>
-												  		</button>
-
-												  		<font size = "1" id = "alert5">Alert 3
-												  		</font>
-													</div>
-												</a>
-											
-
-											</div>
-
-										</div>	
-
-										<script type="text/javascript">
-
-											bootstrap_alert = function() 
-											{
-
-											}
-											bootstrap_alert.warning = function(message) 
-											{
-											            $('#alert_placeholder').html('<div id = "alert_placeholder"><div id="myAlert" class="alert alert-danger alert-dismissable"><button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button><span>'+message+'</span></div></div>')
-											}
-
-										</script>	
-										
-										<script type="text/javascript">
-											$(function()
-											{
-											   $("#myAlert").bind('closed.bs.alert', function () 
-											   {
-											       bootstrap_alert.warning('Your text goes here');
-											   });
-											});
-
-										</script> 	
-
-		<!--added script to organize alerts-->
-
-
-				
-				
-
-
-		<!--
-												<a href = "#"><div id = "myAlert" class="alert alert-success alert-dismissible" role="alert">
-												  <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-												  <font size = "1">Alert 1</font>
-												</div></a>
-												<!--yellow alert-->
-			<!--							
-												<a href = "#"><div id = "myAlert" class="alert alert-warning alert-dismissible" role="alert">
-												  <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-												  <font size = "1">Alert 2</font>
-												</div></a>
-												<!--red alert-->
-						<!--						
-												<a href = "#"><div id = "myAlert" class="alert alert-danger alert-dismissible" role="alert">
-												  <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-												  <font size = "1">Alert 3</font>
-												</div></a>
-											-->
-
-
-									</div>
-								</div>
-							</div>
-							
 						</div>
 					</div>
 				</div>
