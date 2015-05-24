@@ -181,48 +181,50 @@ $(function () {
       }
     </script> 
 
-		<script src="js/highcharts.js"></script>
-<script src="js/modules/exporting.js"></script>
-<script src="js/moment.min.js"></script>
-						<!--<button id="publish" onclick="connect()">Connect Babe!</button>-->
-						<!--<button id="publish" onclick="publish()">Publish!</button>-->
-						<script src="js/mqttws31.js"></script>
-						<!--Sets up MQTT subscription to Charles' data-->
-						<script>
-							function getRandomInt (min, max) {return Math.floor(Math.random() * (max - min + 1)) + min;}
-							$('.dropdown-menu').append('<li id="mqttStatus"><a onClick="connect()"><span class="glyphicon glyphicon-question-sign"></span>&nbsp; MQTT Status</a></li>');
-							var clientId = "client"+getRandomInt(0,1000000);
-	  // MQTT client
-	  var server = "mqtt2.m2m4connectedlife.com";
-	  var port = 1883;
-	  //topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
-	  topic = "iot-1/d/#";
-	  var client = new Messaging.Client(server, port, clientId);
+	<script src="js/highcharts.js"></script>
+	<script src="js/modules/exporting.js"></script>
+	<script src="js/moment.min.js"></script>
 
-	  function connect() {
-	    //Use this trick to only load this when the DOM is ready since the processMessage function can be partial specific which will be loaded after the navbar where the MQTT template (this page) is loaded
-	    $( document ).ready(function() {
-	    	client.onMessageArrived = processMessage;
-	    });
-	    client.onConnectionLost = function() {
-	    	console.log("Lost connection to the MQTT broker");
-	    	$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Connection lost</a>');
-	      specificOnConnectionLoss();       //Allow for specific functions to be defined on the connection loss.
-	      console.log("Reconnecting to broker in 2 seconds");
-	      setTimeout('connect()',2000);
-	  }
-	  console.log("Attempting connection to " + server + ":" + port + " with client id: " + clientId);
-	  client.connect({
-	  	onSuccess: function() {
-	  		console.log("Connected to the MQTT broker");
-	  		$("#mqttStatus").html('<a onClick="disconnect()"><span class="glyphicon glyphicon-ok-circle"></span>&nbsp; Connected</a>');
-	  		client.subscribe(topic);
-	  	},
-	  	onFailure: function() {
-	  		console.log("Could not connect to the MQTT broker");
-	  		$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Not Connected</a>');
-	  	}
-	  });
+	<!--<button id="publish" onclick="connect()">Connect Babe!</button>-->
+	<!--<button id="publish" onclick="publish()">Publish!</button>-->
+	<script src="js/mqttws31.js"></script>
+	<!--Sets up MQTT subscription to Charles' data-->
+	<script>
+		 function getRandomInt (min, max) {return Math.floor(Math.random() * (max - min + 1)) + min;}
+		 $('.dropdown-menu').append('<li id="mqttStatus"><a onClick="connect()"><span class="glyphicon glyphicon-question-sign"></span>&nbsp; MQTT Status</a></li>');
+
+		 var clientId = "client"+getRandomInt(0,1000000);
+		  // MQTT client
+		  var server = "mqtt2.m2m4connectedlife.com";
+		  var port = 1883;
+		  //topic = "iot-1/d/801f02da69bc/evt/light/json";        //THIS IS A DEBUG TOPIC
+		  topic = "iot-1/d/#";
+		  var client = new Messaging.Client(server, port, clientId);
+
+		  function connect() {
+			//Use this trick to only load this when the DOM is ready since the processMessage function can be partial specific which will be loaded after the navbar where the MQTT template (this page) is loaded
+			$( document ).ready(function() {
+				client.onMessageArrived = processMessage;
+			});
+			client.onConnectionLost = function() {
+				console.log("Lost connection to the MQTT broker");
+				$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Connection lost</a>');
+			  specificOnConnectionLoss();       //Allow for specific functions to be defined on the connection loss.
+			  console.log("Reconnecting to broker in 2 seconds");
+			  setTimeout('connect()',2000);
+		  }
+		  console.log("Attempting connection to " + server + ":" + port + " with client id: " + clientId);
+		  client.connect({
+			onSuccess: function() {
+				console.log("Connected to the MQTT broker");
+				$("#mqttStatus").html('<a onClick="disconnect()"><span class="glyphicon glyphicon-ok-circle"></span>&nbsp; Connected</a>');
+				client.subscribe(topic);
+			},
+			onFailure: function() {
+				console.log("Could not connect to the MQTT broker");
+				$("#mqttStatus").html('<a onClick="connect();"><span class="glyphicon glyphicon-remove-circle"></span>&nbsp; Not Connected</a>');
+			}
+		  });
 	}
 	function changeTopic(){
 			topic = document.getElementById('newTopic').value;
@@ -479,7 +481,10 @@ $(function () {
             cell5.innerHTML = parsedPayLoad.value;
 
 			var cell6 = row.insertCell();
-			cell6.innerHTML = parsedPayLoad.value;
+			if(typeof parsedPayLoad.source != 'undefined')
+				cell6.innerHTML = parsedPayLoad.source;
+			else
+				cell6.innerHTML = 'N/A';
            
 		}
 		return;
@@ -589,7 +594,7 @@ $(function () {
 					<div style = "padding-left:30px; padding-bottom: 30px; font-size: 18px;" class="btn-group-horizontal">
 						<!--dropdown1-->
 							<div class="btn-group">
-								<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+								<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:160px">
 									Temperature <font size = "3" id = "temperatureCount">0</font> <span class="caret"></span>
 								</button>
 
@@ -605,7 +610,7 @@ $(function () {
 						<!--dropdown2-->
 						<div class="btn-group">
 
-							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:160px">
 								Seismic <font size = "3" id = "seismicCount">0</font> <span class="caret"></span>
 							</button>
 
@@ -623,7 +628,7 @@ $(function () {
 						<!--dropdown3-->
 						<div class="btn-group">
 
-							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:160px">
 								Gas <font size = "3" id = "gasCount">0</font> <span class="caret"></span>
 							</button>
 
@@ -641,7 +646,7 @@ $(function () {
 						<!--dropdown4-->
 						<div class="btn-group">
 
-							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:160px">
 								Light <font size = "3" id = "lightCount">0</font> <span class="caret"></span>
 							</button>
 
@@ -657,7 +662,7 @@ $(function () {
 						<!--dropdown5-->
 						<div class="btn-group">
 
-							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px">
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:160px">
 								Motion <font size = "3" id = "motionCount">0</font> <span class="caret"></span>
 							</button>
 
@@ -671,7 +676,7 @@ $(function () {
 						<!--dropdown6-->
 						<div class="btn-group">
 
-							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:150px;">
+							<button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" style = "width:160px;">
 								Flood <font size = "3" id = "floodCount">0</font> <span class="caret"></span>
 							</button>
 
@@ -711,7 +716,7 @@ $(function () {
 										Value
 									</th>
 									<th>
-										Source
+										Source Ip Address
 									</th>
 								</tr>
 							<tbody>
