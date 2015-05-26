@@ -7,17 +7,17 @@ from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 def sigfox(request):
     device_id = request.GET.get("id")
-    timestamp = request.GET.get("time")
-    data = request.GET.get("key1")
-    signal = request.GET.get("key2")
-    response = "your data from device %s at time %s is %s with strength %s" % (device_id, timestamp, data, signal)
+    timestamp = float(request.GET.get("time"))
+    data = request.GET.get("data")
+    signal = float(request.GET.get("snr"))
+    response = "Your data from device %s at time %f is %s with strength %f" % (device_id, timestamp, data, signal)
 
     # the hacked smoke sensor only ever sends 4 hex digits
-    # TODO: make that arduino program conform to our binary representation
-    if len(data) < 7:
+    #TODO: make that arduino program conform to our binary representation
+    if len(data) < 7: #XXX
         sensor_type = 'smoke'
         # need to get in hex form first...
-        # TODO: make smoke sensing system work with decimal values
+        #TODO: make smoke sensing system work with decimal values
         if not data.startswith('0x'):
             data = '0x' + str(data)
 
@@ -26,7 +26,7 @@ def sigfox(request):
         priority_original = 10
 
     else:
-        #Divided Sigfox Message data into Segments
+        # Divided Sigfox message data into segments
         event_type_encoded = data[0:2]
         vd_encoded = data[2:6]
         value_encoded = data[6:22]
@@ -35,44 +35,57 @@ def sigfox(request):
 
         # 1. Decode Type
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        type_file = open(dirname+"/"+"event_type_server.json", "rt")
+        type_file = open(dirname+"/"+"sigfox_event_types_server.json", "rt")
         type_stream = type_file.read()
         type_info = json.loads(type_stream)
 
         try:
             event_type_original = type_info[event_type_encoded]
         except KeyError:
-            print "Unknown Event Code: " + event_type_encoded
-            # TODO: return 404 error
+            print "Unknown event: " + event_type_encoded
             raise Http404
 
         # 2. Decode Value Descriptor
+        #TODO: not implemented on client
 
         # 3. Decode Value
-        value_1 = value_encoded[0:8]
-        value_original = str(ctypes.c_float.from_buffer(ctypes.c_int(int(value_1,16))).value)
+        if event_type_original == "temperature" or event_type_original == "temperature_high":
+            value_1 = value_encoded[0:8]
+            value_original = round(ctypes.c_float.from_buffer(ctypes.c_int(int(value_1, 16))).value, 2)
+        elif event_type_original == "explosive_gas":
+            value_1 = value_encoded[0:4]
+            value_original = int(value_1, 16)
+        else:
+            value_original = None
 
         # 4. Decode Priority
-        priority_original = str(int(priority_encoded, 16))
+        priority_original = int(priority_encoded, 16)
 
         # 5. Decode Control Bits
-        #TODO:
+        #TODO: not implemented on clinet
 
     # Generate JSON data
-    #TODO: functionalize this
-    data = {'d' :
-            {'event' : event_type_original,
-             'value' : value_original,
-             'prio_value' : priority_original,
-             'timestamp' : timestamp,
-             'device' : {'id' : device_id,
-                         'type' : 'sigfox',
-                         'version' : '0.1'},
-             'misc' : {'signal' : signal}
-             }
-            }
+    #XXX: functionalize this
+    priority_class = None
+    if priority_original >= 0 and priority_original < 4:
+        priority_class = "high"
+    elif priority_original >=7 and priority_original <= 10:
+        priority_class = "low"
+    elif priority_original >=4 and priority_original < 7:
+        priority_class = "medium"
+    data = {'d': {
+            'event': event_type_original,
+            'value': value_original,
+            'prio_value': priority_original,
+            'prio_class': priority_class,
+            'timestamp': timestamp,
+            #'device': {'id': device_id,
+            #           'type': 'sigfox',
+            #           'version': '0.1'},
+            'misc': {'snr': signal}
+        }}
 
-    DimeDriver.publish("iot-1/d/%s/evt/%s/json" % (device_id, event_type_original), json.dumps(data))
+    DimeDriver.publish("iot-1/d/sigfox00%s/evt/%s/json" % (device_id, event_type_original), json.dumps(data))
 
     return HttpResponse(response, content_type="text/plain")
 
