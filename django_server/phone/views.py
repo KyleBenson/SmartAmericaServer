@@ -197,7 +197,7 @@ def sms_handler(request):
     except ObjectDoesNotExist:
         response_message = NOT_REGISTERED_MESSAGE
 
-    if 'subscribe' in msg or 'register' in msg:
+    if 'subscribe' in msg or ('register' in msg and 'unregister' not in msg):
         # extract contact's name from message
         contact_info = msg.replace('subscribe', '').replace('register','')
         try:
@@ -226,6 +226,7 @@ def sms_handler(request):
                                    'value' : '0x0123'}
                                  })
         scale.DimeDriver.publish_event(event)
+        response_message = "demo for smoke detector started..."
     elif 'unsubscribe' in msg or 'stop' in msg or 'unregister' in msg:
         response_message = unregister(contact_number)
 

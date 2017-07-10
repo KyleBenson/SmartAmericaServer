@@ -37,4 +37,4 @@ def run_demo(request):
 
 def run_dashboard_demo(request):
     subprocess.call('python scale/dashboard_demo.py', shell=True)
-    return HttpResponse('dashboard demo started. Go to http://smartamerica.biobright.org/alerts to view it', content_type="text/plain")
+    return HttpResponse('dashboard demo started. Go to http://scale.ics.uci.edu/dashboard/list.html to view it', content_type="text/plain")

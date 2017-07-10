@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from sensors.models import SensedEvent, Alert, EMERGENCY_EVENT
 from phone.messages import ALERT_CONFIRMED_MESSAGE
-from .celery import celery_engine
+#from .celery import celery_engine
 import scale
 from datetime import datetime, timedelta
 import numpy
@@ -15,7 +15,7 @@ EVENT_DUPLICATE_TIME = timedelta(seconds=30)
 # Celery wasn't running on BlueMix so we can deactivate it there
 USING_CELERY = False
 
-@celery_engine.task()
+#@celery_engine.task()
 def deactivate_events():
     cutoff_time = datetime.now() - EVENT_ACTIVE_TIME
     SensedEvent.objects.filter(active=True,
@@ -52,7 +52,7 @@ def is_possible_fire(event):
         return stdevs > 10
 
 
-@celery_engine.task()
+#@celery_engine.task()
 def smoke_analysis(event):
 
     if is_possible_fire(event):
@@ -93,7 +93,7 @@ def smoke_analysis(event):
             scale.DimeDriver.publish_event(event)
 
 
-@celery_engine.task()
+#@celery_engine.task()
 def check_alert_status(event):
     # TODO: take alerts as args instead of event?
     alerts = Alert.objects.filter(source_event__pk=event.pk)
@@ -114,7 +114,7 @@ def check_alert_status(event):
         scale.DimeDriver.publish_alert(alerts[0])
 
 
-@celery_engine.task()
+#@celery_engine.task()
 def alert_analysis(event):
     """
     Sends messages to all Contacts associated with this alert event.
@@ -141,7 +141,7 @@ def alert_analysis(event):
         alert.send(msg)
 
 
-@celery_engine.task()
+#@celery_engine.task()
 def fire_analysis(event):
     """
     Send Alert messages to all Contacts associated with this event.
@@ -163,7 +163,7 @@ def fire_analysis(event):
         #TODO: extract event analysis patterns from these functions
 
 
-@celery_engine.task()
+#@celery_engine.task()
 def explosive_gas_analysis(event):
     """
     Check if this is a duplicate event and, if not, immediately send alert,

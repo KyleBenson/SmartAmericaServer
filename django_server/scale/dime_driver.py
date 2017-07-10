@@ -4,8 +4,9 @@ import simplejson as json
 from django.core.exceptions import ObjectDoesNotExist
 import sensors.models
 # switch these lines to change brokers
-BROKER_SERVER = "m2m.eclipse.org"
-BROKER_SERVER = "dime.smartamerica.io"
+#BROKER_SERVER = "m2m.eclipse.org"
+#BROKER_SERVER = "dime.smartamerica.io"
+BROKER_SERVER = "iqueue.ics.uci.edu"
 
 class DimeDriver:
     """

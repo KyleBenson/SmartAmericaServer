@@ -8,7 +8,8 @@ EMERGENCY_CONTACT_NUMBER = os.environ.get('EMERGENCY_CONTACT_NUMBER')
 
 urlpatterns = patterns('',
     #url(r'^$', lambda x: redirect('http://smartamerica.org/teams/scale-safe-community-alert-network-a-k-a-public-safety-for-smart-communities/')),
-    url(r'^$', lambda x: redirect('/static/demo_ui/dashboard/dashboard.html')),
+    #url(r'^$', lambda x: redirect('/static/demo_ui/dashboard/dashboard.html')),
+    url(r'^$', lambda x: redirect('http://scale.ics.uci.edu/dashboard')),
     url(r'^fall_app$', lambda x: redirect('/static/SCALEFallDetection.apk')),
     #url(r'^env$', 'scale.views.print_environment'),
     url(r'^demo$', 'scale.views.run_demo'),

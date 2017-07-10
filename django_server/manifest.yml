@@ -3,8 +3,9 @@
 applications:
 - name:      scale
   memory:    512MB
-  buildpack: https://github.com/ephoning/heroku-buildpack-python  # Supports Python 2.7.6, 3.4.0, and Pypy 1.9
+  buildpack: https://github.com/cloudfoundry/python-buildpack
+  #  buildpack: https://github.com/ephoning/heroku-buildpack-python  # Supports Python 2.7.6, 3.4.0, and Pypy 1.9
 # buildpack: https://github.com/joshuamckenty/heroku-buildpack-python  # Does not support Python3
 # command:   python hello.py  # Use this line for Flask, bottle, etc.
-#  command:   ./setup_db.sh; ./run.sh
+#  command:   ./setup_db.sh; ./run.sh # Use this line the first tie you run it
   command:   ./run.sh
