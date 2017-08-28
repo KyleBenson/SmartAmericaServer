@@ -2,6 +2,8 @@
 import math, random, json, time
 import paho.mqtt.client as mqtt
 
+MQTT_BROKER = "iqueue.ics.uci.edu"
+
 TOPIC = "iot-1/d/demo/evt/alert"
 eventTypes = [
   "smoke",
@@ -294,7 +296,7 @@ mqttc = mqtt.Client("python_sub")
 mqttc.on_message = on_message
 mqttc.on_connect = on_connect
 mqttc.on_disconnect = on_disconnect
-mqttc.connect("dime.smartamerica.io",1883,60)
+mqttc.connect(MQTT_BROKER,1883,60)
 
 i = 0
 alertsSent = []
